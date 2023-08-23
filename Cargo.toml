@@ -4,10 +4,12 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.63.0"
 description = "Combined progress reporting and cooperative task yielding."
+repository = "https://github.com/kpreid/yield-progress"
 license = "MIT OR Apache-2.0"
 categories = ["asynchronous", "gui", "wasm"]
 keywords = ["yield", "progressbar"]
 publish = true
+exclude = [".github", ".vscode"]
 
 [dependencies]
 # Used for logging over-long intervals between yields. TODO: This should be pluggable and optional
