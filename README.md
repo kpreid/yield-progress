@@ -1,7 +1,7 @@
 `YieldProgress`
 ===============
 
-This library, `yield-progress` provides the `YieldProgress` type, which allows a long-running async task to report its progress, while also yielding to the scheduler (e.g. for the single-threaded web/Wasm environment) and introducing cancellation points.
+This library, `yield-progress`, provides the `YieldProgress` type, which allows a long-running async task to report its progress, while also yielding to the scheduler (e.g. for the single-threaded web/Wasm environment) and introducing cancellation points.
 
 These things go together because the rate at which it makes sense to yield (to avoid event
 loop hangs) is similar to the rate at which it makes sense to report progress.
