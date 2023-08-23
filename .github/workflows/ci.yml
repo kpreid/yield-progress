@@ -73,20 +73,19 @@ jobs:
         path: |
           target/cargo-timings/cargo-timing-*.html
 
-  # TODO: enable this once we have at least one tagged release
-  # semver:
-  #   runs-on: ubuntu-latest
-  # 
-  #   steps:
-  #   - uses: actions/checkout@v3.1.0
-  # 
-  #   - uses: Swatinem/rust-cache@v2.0.2
-  # 
-  #   - name: Check semver
-  #     uses: obi1kenobi/cargo-semver-checks-action@v1
-  #     # Use workspace target dir for cargo install's build, so that the build will be cached.
-  #     env:
-  #       CARGO_TARGET_DIR: target/
-  #     with:
-  #       crate-name: exhaust
-  #       version-tag-prefix: v
+  semver:
+    runs-on: ubuntu-latest
+  
+    steps:
+    - uses: actions/checkout@v3.1.0
+  
+    - uses: Swatinem/rust-cache@v2.0.2
+  
+    - name: Check semver
+      uses: obi1kenobi/cargo-semver-checks-action@v1
+      # Use workspace target dir for cargo install's build, so that the build will be cached.
+      env:
+        CARGO_TARGET_DIR: target/
+      with:
+        crate-name: yield-progress
+        version-tag-prefix: v
