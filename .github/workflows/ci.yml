@@ -20,7 +20,7 @@ jobs:
   test:
     strategy:
       matrix:
-        toolchain: [stable, 1.56.0, beta, nightly]
+        toolchain: [stable, 1.63.0, beta, nightly]
 
     runs-on: ubuntu-latest
     continue-on-error: true
