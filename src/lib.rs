@@ -7,6 +7,7 @@ use core::time::Duration;
 // TODO: Make thread-safety optional so we can be alloc-but-not-std
 use std::sync::{Arc, Mutex};
 
+// TODO: Make time checks optional
 #[cfg(target = "wasm32-unknown-unknown")]
 use instant::Instant;
 #[cfg(not(target = "wasm32-unknown-unknown"))]
