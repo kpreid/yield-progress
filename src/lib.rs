@@ -4,6 +4,9 @@ use core::panic::Location;
 use core::pin::Pin;
 use core::time::Duration;
 
+#[cfg(doc)]
+use core::task::Poll;
+
 // TODO: Make thread-safety optional so we can be alloc-but-not-std
 use std::sync::{Arc, Mutex};
 
@@ -76,8 +79,15 @@ impl YieldProgress {
     /// Construct a new [`YieldProgress`], which will call `yielder` to yield and
     /// `progressor` to report progress.
     ///
-    /// Note that it measures time intervals between yields starting from when this
-    /// function is called, as if this is the first yield.
+    /// * `yielder` should return a `Future` that returns [`Poll::Pending`] at least once,
+    ///   and may perform other executor-specific actions to assist with scheduling other tasks.
+    /// * `progressor` is called with the progress fraction (a number between 0 and 1) and a
+    ///   label for the current portion of work (which will be `""` if no label has been set).
+    ///
+    /// It will also report any excessively-long intervals between yields using the [`log`]
+    /// library. “Excessively long” is currently defined as 100 ms.
+    /// The first interval starts  when function is called, as if this is the first yield.
+    /// This may become more configurable in future versions.
     #[track_caller]
     pub fn new<Y, YFut, P>(yielder: Y, progressor: P) -> Self
     where
