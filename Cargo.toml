@@ -1,0 +1,23 @@
+[package]
+name = "yield-progress"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.56.0"
+description = "Combined progress reporting and cooperative task yielding."
+license = "MIT OR Apache-2.0"
+categories = ["asynchronous", "gui", "wasm"]
+keywords = ["yield", "progressbar"]
+publish = true
+
+[dependencies]
+# Used for logging over-long intervals between yields. TODO: This should be pluggable and optional
+log = { version = "0.4.17", default-features = false }
+
+[target."cfg(target_family = \"wasm\")".dependencies]
+# Used for reading the current time on wasm. TODO: This should be pluggable and optional
+instant = "0.1.12"
+
+[dev-dependencies]
+# Used for executing async tests.
+# We could in principle slim down with `pollster` and `futures-channel` or a DIY.
+tokio = { version = "1.28.0", default-features = false, features = ["rt", "sync", "macros"] }
