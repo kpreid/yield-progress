@@ -32,6 +32,7 @@ jobs:
       # Install exactly what we need: compiler, Cargo, clippy
       run: |
           rustup toolchain install "${{ matrix.toolchain }}" --profile=minimal --component=clippy
+          rustup target add --toolchain="${{ matrix.toolchain }}" wasm32-unknown-unknown
           rustup override set "${{ matrix.toolchain }}"
 
     # Load cache before doing any Rust builds
