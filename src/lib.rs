@@ -22,14 +22,13 @@ type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 /// scheduler (e.g. for single-threaded web environment) and introducing cancellation
 /// points.
 ///
-/// These go together because the rate at which it makes sense to yield (to avoid event
+/// These things go together because the rate at which it makes sense to yield (to avoid event
 /// loop hangs) is similar to the rate at which it makes sense to report progress.
 ///
-/// Note that while a [`YieldProgress`] is [`Send`] and [`Sync`], it does not currently
-/// support meaningfully being used from multiple threads or futures at once — only
-/// reporting the progress of, and yielding periodically within, a fully sequential
-/// operation. This might change in the future, but for now, it will just output
-/// inconsistent results if you try to use it otherwise.
+/// Note that while a [`YieldProgress`] is [`Send`] and [`Sync`] in order to be used within tasks
+/// that may be moved between threads, it does not currently support meaningfully being used from
+/// multiple threads or futures at once — only within a fully sequential operation. Future versions
+/// may include a “parallel split” operation but the current one does not.
 pub struct YieldProgress {
     start: f32,
     end: f32,
