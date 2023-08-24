@@ -1,3 +1,23 @@
+//! This library provides the `YieldProgress` type, which allows a long-running async task
+//! to report its progress, while also yielding to the scheduler (e.g. for the
+//! single-threaded web/Wasm environment) and introducing cancellation points.
+//!
+//! These things go together because the rate at which it makes sense to yield (to avoid
+//! event loop hangs) is similar to the rate at which it makes sense to report progress.
+//!
+//! `YieldProgress` is executor-independent; when it is constructed, the caller provides a
+//! function for yielding.
+
+#![deny(elided_lifetimes_in_paths)]
+#![forbid(unsafe_code)]
+#![warn(clippy::cast_lossless)]
+#![warn(clippy::exhaustive_enums)]
+#![warn(clippy::exhaustive_structs)]
+#![warn(clippy::return_self_not_must_use)]
+#![warn(clippy::wrong_self_convention)]
+#![warn(missing_docs)]
+#![warn(unused_lifetimes)]
+
 use core::fmt;
 use core::future::Future;
 use core::panic::Location;
