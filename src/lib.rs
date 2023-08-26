@@ -106,9 +106,26 @@ impl YieldProgress {
     ///   label for the current portion of work (which will be `""` if no label has been set).
     ///
     /// It will also report any excessively-long intervals between yields using the [`log`]
-    /// library. “Excessively long” is currently defined as 100 ms.
+    /// library. “Excessively long” is currently defined as 100&nbsp;ms.
     /// The first interval starts  when function is called, as if this is the first yield.
     /// This may become more configurable in future versions.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use yield_progress::YieldProgress;
+    /// # struct Pb;
+    /// # impl Pb { fn set_value(&self, _value: f32) {} }
+    /// # let some_progress_bar = Pb;
+    /// // let some_progress_bar = ...;
+    ///
+    /// let progress = YieldProgress::new(
+    ///     tokio::task::yield_now,
+    ///     move |fraction, _label| {
+    ///         some_progress_bar.set_value(fraction);
+    ///     }
+    /// );
+    /// ```
     #[track_caller]
     pub fn new<Y, YFut, P>(yielder: Y, progressor: P) -> Self
     where
@@ -135,6 +152,19 @@ impl YieldProgress {
     }
 
     /// Returns a [`YieldProgress`] that does no progress reporting and no yielding.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # #[tokio::main(flavor = "current_thread")] async fn main() {
+    /// use yield_progress::YieldProgress;
+    ///
+    /// let mut progress = YieldProgress::noop();
+    /// // These calls will have no effect.
+    /// progress.set_label("a tree falls in a forest");
+    /// progress.progress(0.12345).await;
+    /// # }
+    /// ```
     pub fn noop() -> Self {
         Self::new(|| std::future::ready(()), |_, _| {})
     }
