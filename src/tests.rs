@@ -130,4 +130,47 @@ async fn start_and_cut() {
     assert_eq!(r.drain(), vec![Progress(1.0, "".into()), Yielded, Dropped]);
 }
 
-// TODO: test split() and split_evenly()
+#[tokio::test]
+async fn split_evenly_basic() {
+    let (p, mut r) = logging_yield_progress();
+    let [p1, p2, p3, mut p4] = <[_; 4]>::try_from(p.split_evenly(4).collect::<Vec<_>>()).unwrap();
+
+    p1.finish().await;
+    assert_eq!(r.drain(), vec![Progress(0.25, "".into()), Yielded]);
+
+    // Ignore p2 and check what happens when we move on to p3.
+    drop(p2);
+    p3.progress(0.5).await;
+    assert_eq!(r.drain(), vec![Progress(5. / 8., "".into()), Yielded]);
+    p3.finish().await;
+    assert_eq!(r.drain(), vec![Progress(6. / 8., "".into()), Yielded]);
+
+    p4.set_label("hello");
+    p4.finish().await;
+    assert_eq!(
+        r.drain(),
+        vec![Progress(1.0, "hello".into()), Yielded, Dropped]
+    );
+}
+
+/// Test that `split_evenly()`'s arithmetic works okay at `usize::MAX`.
+///
+/// (This is a trivial test on 64-bit platforms because [`f32`] does not have enough resolution
+/// to discriminate.)
+#[tokio::test]
+async fn split_evenly_with_max() {
+    let (mut p, mut r) = logging_yield_progress();
+    p = p.split_evenly(usize::MAX).next_back().unwrap();
+    p.progress(0.0).await;
+    assert_eq!(
+        r.drain(),
+        vec![
+            Progress(1.0 - (usize::MAX as f32).recip(), "".into()),
+            Yielded
+        ]
+    );
+    p.finish().await;
+    assert_eq!(r.drain(), vec![Progress(1.0, "".into()), Yielded, Dropped]);
+}
+
+// TODO: test split()

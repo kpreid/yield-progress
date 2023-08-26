@@ -13,6 +13,7 @@
 #![warn(clippy::cast_lossless)]
 #![warn(clippy::exhaustive_enums)]
 #![warn(clippy::exhaustive_structs)]
+#![warn(clippy::missing_panics_doc)]
 #![warn(clippy::return_self_not_must_use)]
 #![warn(clippy::wrong_self_convention)]
 #![warn(missing_docs)]
@@ -276,12 +277,15 @@ impl YieldProgress {
     }
 
     /// Split into even subdivisions.
-    pub fn split_evenly(self, count: usize) -> impl Iterator<Item = YieldProgress> {
-        assert!(count < usize::MAX);
+    pub fn split_evenly(
+        self,
+        count: usize,
+    ) -> impl DoubleEndedIterator<Item = YieldProgress> + ExactSizeIterator + std::iter::FusedIterator
+    {
         (0..count).map(move |index| {
             self.with_new_range(
                 self.point_in_range(index as f32 / count as f32),
-                self.point_in_range((index + 1) as f32 / count as f32),
+                self.point_in_range((index as f32 + 1.0) / count as f32),
             )
         })
     }
