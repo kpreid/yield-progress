@@ -48,7 +48,7 @@ mod basic_yield;
 pub use basic_yield::basic_yield_now;
 
 mod builder;
-pub use builder::{builder, Builder};
+pub use builder::Builder;
 
 #[cfg(test)]
 mod tests;
@@ -69,6 +69,10 @@ type ProgressFn = dyn Fn(f32, &str) + Send + Sync + 'static;
 /// that may be moved between threads, it does not currently support meaningfully being used from
 /// multiple threads or futures at once — only within a fully sequential operation. Future versions
 /// may include a “parallel split” operation but the current one does not.
+///
+/// ---
+///
+/// To construct a [`YieldProgress`], use the [`Builder`].
 pub struct YieldProgress {
     start: f32,
     end: f32,
@@ -144,14 +148,14 @@ impl YieldProgress {
     /// );
     /// ```
     #[track_caller]
-    #[deprecated = "use `yield_progress::builder()` instead"]
+    #[deprecated = "use `yield_progress::Builder` instead"]
     pub fn new<Y, YFut, P>(yielder: Y, progressor: P) -> Self
     where
         Y: Fn() -> YFut + Send + Sync + 'static,
         YFut: Future<Output = ()> + Send + 'static,
         P: Fn(f32, &str) + Send + Sync + 'static,
     {
-        builder()
+        Builder::new()
             .yield_using(yielder)
             .progress_using(progressor)
             .build()
@@ -171,9 +175,11 @@ impl YieldProgress {
     /// progress.progress(0.12345).await;
     /// # }
     /// ```
-    #[deprecated = "use `yield_progress::builder()` instead"]
+    #[deprecated = "use `yield_progress::Builder` instead"]
     pub fn noop() -> Self {
-        builder().yield_using(|| std::future::ready(())).build()
+        Builder::new()
+            .yield_using(|| std::future::ready(()))
+            .build()
     }
 
     /// Add a name for the portion of work this [`YieldProgress`] covers, which will be
