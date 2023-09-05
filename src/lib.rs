@@ -44,6 +44,9 @@ use std::sync::Mutex;
 // TODO: Make time checks optional
 use instant::Instant;
 
+mod basic_yield;
+pub use basic_yield::basic_yield_now;
+
 #[cfg(test)]
 mod tests;
 
