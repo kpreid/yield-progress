@@ -26,13 +26,16 @@ fn logging_yield_progress() -> (YieldProgress, YpLog) {
     let yp = Builder::new()
         .yield_using({
             let sender = sender.clone();
-            move || {
+            move |_| {
                 let _ = sender.send(Entry::Yielded);
                 std::future::ready(())
             }
         })
-        .progress_using(move |progress, label| {
-            drop(sender.send(Entry::Progress(progress, label.to_owned())))
+        .progress_using(move |info| {
+            drop(sender.send(Entry::Progress(
+                info.fraction(),
+                info.label_str().to_owned(),
+            )))
         })
         .build();
     (yp, YpLog(receiver))
