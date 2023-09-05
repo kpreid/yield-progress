@@ -51,8 +51,9 @@ jobs:
       run: cargo test --all-features
 
     - name: Compile on Wasm
-      # don't yet have tests that can run on wasm, but this will check for compile success
-      run: cargo build --all-targets --target wasm32-unknown-unknown
+      # We don't yet have tests that can run on Wasm, but this will check for compile success.
+      # Examples can't all build on Wasm, so no --all-targets.
+      run: cargo build --target wasm32-unknown-unknown
 
     - name: Update
       run: cargo update
