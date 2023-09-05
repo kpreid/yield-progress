@@ -47,11 +47,16 @@ use instant::Instant;
 mod basic_yield;
 pub use basic_yield::basic_yield_now;
 
+mod builder;
+pub use builder::{builder, Builder};
+
 #[cfg(test)]
 mod tests;
 
 /// We could import this alias from `futures-core` but that would be another non-dev dependency.
 type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+
+type ProgressFn = dyn Fn(f32, &str) + Send + Sync + 'static;
 
 /// Allows a long-running async task to report its progress, while also yielding to the
 /// scheduler (e.g. for single-threaded web environment) and introducing cancellation
@@ -79,8 +84,7 @@ pub struct YieldProgress {
     yielding: Arc<Yielding<dyn Fn() -> BoxFuture<'static, ()> + Send + Sync>>,
     // TODO: change progress reporting interface to support efficient handling of
     // the label string being the same as last time.
-    #[allow(clippy::type_complexity)]
-    progressor: Arc<dyn Fn(f32, &str) + Send + Sync>,
+    progressor: Arc<ProgressFn>,
 }
 
 /// Piggyback on the `Arc` we need to store the `dyn Fn` anyway to also store some state.
@@ -146,22 +150,10 @@ impl YieldProgress {
         YFut: Future<Output = ()> + Send + 'static,
         P: Fn(f32, &str) + Send + Sync + 'static,
     {
-        let yielding: Arc<Yielding<_>> = Arc::new(Yielding {
-            state: Mutex::new(YieldState {
-                last_finished_yielding: Instant::now(),
-                last_yield_location: Location::caller(),
-                last_yield_label: None,
-            }),
-            yielder: move || -> BoxFuture<'static, ()> { Box::pin(yielder()) },
-        });
-
-        Self {
-            start: 0.0,
-            end: 1.0,
-            label: None,
-            yielding,
-            progressor: Arc::new(progressor),
-        }
+        builder()
+            .yield_using(yielder)
+            .progress_using(progressor)
+            .build()
     }
 
     /// Returns a [`YieldProgress`] that does no progress reporting and no yielding.
