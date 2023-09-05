@@ -8,13 +8,15 @@ use std::sync::Mutex;
 
 use instant::Instant;
 
-use crate::{basic_yield_now, BoxFuture, YieldProgress, YieldState, Yielding};
+use crate::{
+    basic_yield_now, BoxFuture, ProgressInfo, YieldInfo, YieldProgress, YieldState, Yielding,
+};
 
 /// Builder for creating root [`YieldProgress`] instances.
 #[derive(Clone)]
 #[must_use]
 pub struct Builder {
-    yielding: Arc<Yielding<dyn Fn() -> BoxFuture<'static, ()> + Send + Sync>>,
+    yielding: Arc<Yielding<crate::YieldFn>>,
     progressor: Arc<crate::ProgressFn>,
 }
 
@@ -32,14 +34,16 @@ impl Builder {
     pub fn new() -> Builder {
         Builder {
             yielding: Arc::new(Yielding {
-                yielder: move || -> BoxFuture<'static, ()> { Box::pin(basic_yield_now()) },
+                yielder: move |_info: &YieldInfo<'_>| -> BoxFuture<'static, ()> {
+                    Box::pin(basic_yield_now())
+                },
                 state: Mutex::new(YieldState {
                     last_finished_yielding: Instant::now(),
                     last_yield_location: Location::caller(),
                     last_yield_label: None,
                 }),
             }),
-            progressor: Arc::new(|_, _| {}),
+            progressor: Arc::new(|_| {}),
         }
     }
 
@@ -66,11 +70,13 @@ impl Builder {
     #[allow(clippy::missing_panics_doc)] // internal, can't happen
     pub fn yield_using<Y, YFut>(mut self, function: Y) -> Self
     where
-        Y: Fn() -> YFut + Send + Sync + 'static,
+        Y: for<'a> Fn(&'a YieldInfo<'a>) -> YFut + Send + Sync + 'static,
         YFut: Future<Output = ()> + Send + 'static,
     {
         let new_yielding = Arc::new(Yielding {
-            yielder: move || -> BoxFuture<'static, ()> { Box::pin(function()) },
+            yielder: move |info: &YieldInfo<'_>| -> BoxFuture<'static, ()> {
+                Box::pin(function(info))
+            },
             state: Mutex::new(self.yielding.state.lock().unwrap().clone()),
         });
         self.yielding = new_yielding;
@@ -83,7 +89,7 @@ impl Builder {
     /// of callbacks). If this is not called, the default function used does nothing.
     pub fn progress_using<P>(mut self, function: P) -> Self
     where
-        P: Fn(f32, &str) + Send + Sync + 'static,
+        P: for<'a> Fn(&'a ProgressInfo<'a>) + Send + Sync + 'static,
     {
         self.progressor = Arc::new(function);
         self

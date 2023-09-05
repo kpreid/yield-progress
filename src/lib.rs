@@ -50,13 +50,17 @@ pub use basic_yield::basic_yield_now;
 mod builder;
 pub use builder::Builder;
 
+mod info;
+pub use info::{ProgressInfo, YieldInfo};
+
 #[cfg(test)]
 mod tests;
 
 /// We could import this alias from `futures-core` but that would be another non-dev dependency.
 type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
-type ProgressFn = dyn Fn(f32, &str) + Send + Sync + 'static;
+type ProgressFn = dyn for<'a> Fn(&'a ProgressInfo<'a>) + Send + Sync + 'static;
+type YieldFn = dyn for<'a> Fn(&'a YieldInfo<'a>) -> BoxFuture<'static, ()> + Send + Sync;
 
 /// Allows a long-running async task to report its progress, while also yielding to the
 /// scheduler (e.g. for single-threaded web environment) and introducing cancellation
@@ -85,7 +89,7 @@ pub struct YieldProgress {
     /// inheritance from having been explicitly set.
     label: Option<Arc<str>>,
 
-    yielding: Arc<Yielding<dyn Fn() -> BoxFuture<'static, ()> + Send + Sync>>,
+    yielding: Arc<Yielding<YieldFn>>,
     // TODO: change progress reporting interface to support efficient handling of
     // the label string being the same as last time.
     progressor: Arc<ProgressFn>,
@@ -156,8 +160,8 @@ impl YieldProgress {
         P: Fn(f32, &str) + Send + Sync + 'static,
     {
         Builder::new()
-            .yield_using(yielder)
-            .progress_using(progressor)
+            .yield_using(move |_| yielder())
+            .progress_using(move |info| progressor(info.fraction(), info.label_str()))
             .build()
     }
 
@@ -178,7 +182,7 @@ impl YieldProgress {
     #[deprecated = "use `yield_progress::Builder` instead"]
     pub fn noop() -> Self {
         Builder::new()
-            .yield_using(|| std::future::ready(()))
+            .yield_using(|_| std::future::ready(()))
             .build()
     }
 
@@ -226,12 +230,15 @@ impl YieldProgress {
     /// update. This should be used only when necessary for non-async code.
     #[track_caller]
     pub fn progress_without_yield(&self, progress_fraction: f32) {
-        (self.progressor)(
-            self.point_in_range(progress_fraction),
-            self.label
+        let location = Location::caller();
+        (self.progressor)(&ProgressInfo {
+            fraction: self.point_in_range(progress_fraction),
+            label: self
+                .label
                 .as_ref()
                 .map_or("", |arc_str_ref| -> &str { arc_str_ref }),
-        );
+            location,
+        });
     }
 
     /// Yield only; that is, call the yield function contained within this [`YieldProgress`].
@@ -334,7 +341,9 @@ impl YieldProgress {
     }
 }
 
-impl<F: ?Sized + Fn() -> BoxFuture<'static, ()> + Send + Sync> Yielding<F> {
+impl<F: ?Sized + for<'a> Fn(&'a YieldInfo<'a>) -> BoxFuture<'static, ()> + Send + Sync>
+    Yielding<F>
+{
     async fn yield_only(
         self: Arc<Self>,
         location: &'static Location<'static>,
@@ -365,7 +374,7 @@ impl<F: ?Sized + Fn() -> BoxFuture<'static, ()> + Send + Sync> Yielding<F> {
         // TODO: Since we're tracking time, we might as well decide whether to not bother
         // yielding if it has been a short time ... except that different yielders might
         // want different granularities/policies.
-        (self.yielder)().await;
+        (self.yielder)(&YieldInfo { location }).await;
 
         {
             let mut state = self.state.lock().unwrap();

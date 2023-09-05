@@ -5,7 +5,7 @@ use yield_progress::YieldProgress;
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     let p = yield_progress::Builder::new()
-        .yield_using(tokio::task::yield_now)
+        .yield_using(|_| tokio::task::yield_now())
         .progress_using(progress_bar())
         .build();
 
@@ -37,10 +37,10 @@ async fn cancellable_task(p: YieldProgress) {
     p.finish().await;
 }
 
-fn progress_bar() -> impl Fn(f32, &str) {
+fn progress_bar() -> impl Fn(&yield_progress::ProgressInfo<'_>) {
     // TODO: print label; don't print again if the output would be identical text
-    move |fraction, _label| {
-        let width = (fraction * 80.0) as usize;
+    move |info| {
+        let width = (info.fraction() * 80.0) as usize;
         print!("\r{blank:X<width$}", blank = "");
     }
 }
