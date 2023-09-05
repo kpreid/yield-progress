@@ -4,7 +4,7 @@ use yield_progress::YieldProgress;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
-    let p = yield_progress::builder()
+    let p = yield_progress::Builder::new()
         .yield_using(tokio::task::yield_now)
         .progress_using(progress_bar())
         .build();

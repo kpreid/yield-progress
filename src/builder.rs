@@ -10,30 +10,7 @@ use instant::Instant;
 
 use crate::{basic_yield_now, BoxFuture, YieldProgress, YieldState, Yielding};
 
-/// Returns a builder of [`YieldProgress`]es.
-///
-/// The default values are:
-///
-/// * The yield function is [`basic_yield_now`].
-/// * The progress function does nothing.
-///
-/// The call site of this function is considered to be the first yield point.
-#[track_caller]
-pub fn builder() -> Builder {
-    Builder {
-        yielding: Arc::new(Yielding {
-            yielder: move || -> BoxFuture<'static, ()> { Box::pin(basic_yield_now()) },
-            state: Mutex::new(YieldState {
-                last_finished_yielding: Instant::now(),
-                last_yield_location: Location::caller(),
-                last_yield_label: None,
-            }),
-        }),
-        progressor: Arc::new(|_, _| {}),
-    }
-}
-
-/// Builder of [`YieldProgress`]es.
+/// Builder for creating root [`YieldProgress`] instances.
 #[derive(Clone)]
 #[must_use]
 pub struct Builder {
@@ -42,6 +19,30 @@ pub struct Builder {
 }
 
 impl Builder {
+    /// Constructs a [`Builder`].
+    ///
+    /// The default values are:
+    ///
+    /// * The yield function is [`basic_yield_now`].
+    /// * The progress function does nothing.
+    ///
+    /// The call site of this function is considered to be the yield point preceding the first actual
+    /// yield point.
+    #[track_caller]
+    pub fn new() -> Builder {
+        Builder {
+            yielding: Arc::new(Yielding {
+                yielder: move || -> BoxFuture<'static, ()> { Box::pin(basic_yield_now()) },
+                state: Mutex::new(YieldState {
+                    last_finished_yielding: Instant::now(),
+                    last_yield_location: Location::caller(),
+                    last_yield_label: None,
+                }),
+            }),
+            progressor: Arc::new(|_, _| {}),
+        }
+    }
+
     /// Construct a new [`YieldProgress`] using the behaviors specified by this builder.
     pub fn build(self) -> YieldProgress {
         let Self {
@@ -86,5 +87,11 @@ impl Builder {
     {
         self.progressor = Arc::new(function);
         self
+    }
+}
+
+impl Default for Builder {
+    fn default() -> Self {
+        Self::new()
     }
 }
