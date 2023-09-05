@@ -1,8 +1,8 @@
-use super::*;
-
 use std::prelude::rust_2021::*;
 
 use tokio::sync::mpsc::{self, error::TryRecvError};
+
+use crate::YieldProgress;
 
 fn assert_send_sync<T: Send + Sync>() {
     // We don't need to do anything in this function; the call to it having been successfully
@@ -23,16 +23,18 @@ struct YpLog(mpsc::UnboundedReceiver<Entry>);
 
 fn logging_yield_progress() -> (YieldProgress, YpLog) {
     let (sender, receiver) = mpsc::unbounded_channel();
-    let yp = YieldProgress::new(
-        {
+    let yp = crate::builder()
+        .yield_using({
             let sender = sender.clone();
             move || {
                 let _ = sender.send(Entry::Yielded);
                 std::future::ready(())
             }
-        },
-        move |progress, label| drop(sender.send(Entry::Progress(progress, label.to_owned()))),
-    );
+        })
+        .progress_using(move |progress, label| {
+            drop(sender.send(Entry::Progress(progress, label.to_owned())))
+        })
+        .build();
     (yp, YpLog(receiver))
 }
 

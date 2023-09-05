@@ -4,7 +4,10 @@ use yield_progress::YieldProgress;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
-    let p = YieldProgress::new(tokio::task::yield_now, progress_bar());
+    let p = yield_progress::builder()
+        .yield_using(tokio::task::yield_now)
+        .progress_using(progress_bar())
+        .build();
 
     let task_handle = tokio::task::spawn(cancellable_task(p));
 

@@ -144,6 +144,7 @@ impl YieldProgress {
     /// );
     /// ```
     #[track_caller]
+    #[deprecated = "use `yield_progress::builder()` instead"]
     pub fn new<Y, YFut, P>(yielder: Y, progressor: P) -> Self
     where
         Y: Fn() -> YFut + Send + Sync + 'static,
@@ -170,8 +171,9 @@ impl YieldProgress {
     /// progress.progress(0.12345).await;
     /// # }
     /// ```
+    #[deprecated = "use `yield_progress::builder()` instead"]
     pub fn noop() -> Self {
-        Self::new(|| std::future::ready(()), |_, _| {})
+        builder().yield_using(|| std::future::ready(())).build()
     }
 
     /// Add a name for the portion of work this [`YieldProgress`] covers, which will be
