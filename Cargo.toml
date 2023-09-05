@@ -17,7 +17,13 @@ log = { version = "0.4.17", default-features = false }
 # Used for reading the current time on wasm. TODO: This should be pluggable and optional
 instant = { version = "0.1.12" }
 
-[dev-dependencies]
-# Used for executing async tests.
-# We could in principle slim down with `pollster` and `futures-channel` or a DIY.
-tokio = { version = "1.28.0", default-features = false, features = ["rt", "sync", "macros"] }
+[dev-dependencies.tokio]
+version = "1.28.0"
+default-features = false
+features = [
+    "rt",
+    "sync", # for gathering data in tests
+    "macros", # for tokio::main and tokio::test in tests and examples
+    "signal", # for interactive cancellation example
+    "time",  # for examples
+]
