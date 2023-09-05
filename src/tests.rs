@@ -1,4 +1,7 @@
 use super::*;
+
+use std::prelude::rust_2021::*;
+
 use tokio::sync::mpsc::{self, error::TryRecvError};
 
 fn assert_send_sync<T: Send + Sync>() {

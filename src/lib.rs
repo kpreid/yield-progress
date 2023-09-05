@@ -8,6 +8,7 @@
 //! `YieldProgress` is executor-independent; when it is constructed, the caller provides a
 //! function for yielding.
 
+#![no_std]
 #![deny(elided_lifetimes_in_paths)]
 #![forbid(unsafe_code)]
 #![warn(clippy::cast_lossless)]
@@ -19,17 +20,26 @@
 #![warn(missing_docs)]
 #![warn(unused_lifetimes)]
 
+extern crate alloc;
+// TODO: Make thread-safety optional so we can be alloc-but-not-std
+#[cfg_attr(test, macro_use)]
+extern crate std;
+
 use core::fmt;
 use core::future::Future;
 use core::panic::Location;
 use core::pin::Pin;
 use core::time::Duration;
 
+use alloc::boxed::Box;
+use alloc::format;
+use alloc::string::ToString as _;
+use alloc::sync::Arc;
+
 #[cfg(doc)]
 use core::task::Poll;
 
-// TODO: Make thread-safety optional so we can be alloc-but-not-std
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 // TODO: Make time checks optional
 use instant::Instant;
