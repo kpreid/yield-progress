@@ -2,7 +2,7 @@ use std::prelude::rust_2021::*;
 
 use tokio::sync::mpsc::{self, error::TryRecvError};
 
-use crate::{Builder, YieldProgress};
+use yield_progress::{Builder, YieldProgress};
 
 #[cfg(feature = "sync")]
 fn assert_send_sync<T: Send + Sync>() {

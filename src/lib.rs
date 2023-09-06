@@ -63,9 +63,6 @@ use maybe_sync::*;
 mod info;
 pub use info::{ProgressInfo, YieldInfo};
 
-#[cfg(test)]
-mod tests;
-
 /// We could import this alias from `futures-core` but that would be another non-dev dependency.
 type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
