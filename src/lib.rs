@@ -7,6 +7,11 @@
 //!
 //! `YieldProgress` is executor-independent; when it is constructed, the caller provides a
 //! function for yielding.
+//!
+//! # Crate feature flags
+//!
+//! * `sync` (default): Implements `YieldProgress: Send + Sync` for use with multi-threaded executors.
+//!   Requires `std` to be available for the compilation target.
 
 #![no_std]
 #![deny(elided_lifetimes_in_paths)]
@@ -34,12 +39,9 @@ use core::time::Duration;
 use alloc::boxed::Box;
 use alloc::format;
 use alloc::string::ToString as _;
-use alloc::sync::Arc;
 
 #[cfg(doc)]
 use core::task::Poll;
-
-use std::sync::Mutex;
 
 // TODO: Make time checks optional
 use instant::Instant;
@@ -49,6 +51,9 @@ pub use basic_yield::basic_yield_now;
 
 mod builder;
 pub use builder::Builder;
+
+mod maybe_sync;
+use maybe_sync::*;
 
 mod info;
 pub use info::{ProgressInfo, YieldInfo};
@@ -87,17 +92,17 @@ pub struct YieldProgress {
     /// TODO: Eventually we will want to have things like "label this segment as a
     /// fallback if it has no better label", which will require some notion of distinguishing
     /// inheritance from having been explicitly set.
-    label: Option<Arc<str>>,
+    label: Option<MaRc<str>>,
 
-    yielding: Arc<Yielding<YieldFn>>,
+    yielding: MaRc<Yielding<YieldFn>>,
     // TODO: change progress reporting interface to support efficient handling of
     // the label string being the same as last time.
-    progressor: Arc<ProgressFn>,
+    progressor: MaRc<ProgressFn>,
 }
 
 /// Piggyback on the `Arc` we need to store the `dyn Fn` anyway to also store some state.
 struct Yielding<F: ?Sized> {
-    state: Mutex<YieldState>,
+    state: StateCell<YieldState>,
 
     yielder: F,
 }
@@ -108,7 +113,7 @@ struct YieldState {
     /// Used to detect overlong time periods between yields.
     last_finished_yielding: Instant,
     last_yield_location: &'static Location<'static>,
-    last_yield_label: Option<Arc<str>>,
+    last_yield_label: Option<MaRc<str>>,
 }
 
 impl fmt::Debug for YieldProgress {
@@ -194,7 +199,7 @@ impl YieldProgress {
     /// This does not immediately report progress; that is, the label will not be visible
     /// anywhere until the next operation that does. Future versions may report it immediately.
     pub fn set_label(&mut self, label: impl fmt::Display) {
-        self.label = Some(Arc::from(label.to_string()))
+        self.label = Some(MaRc::from(label.to_string()))
     }
 
     /// Map a `0..=1` value to `self.start..=self.end`.
@@ -215,7 +220,7 @@ impl YieldProgress {
     ///
     /// The value *may* be less than previously given values.
     #[track_caller] // This is not an `async fn` because `track_caller` is not compatible
-    pub fn progress(&self, progress_fraction: f32) -> impl Future<Output = ()> + Send + 'static {
+    pub fn progress(&self, progress_fraction: f32) -> maybe_send_impl_future!(()) {
         let location = Location::caller();
         let label = self.label.clone();
 
@@ -243,7 +248,7 @@ impl YieldProgress {
 
     /// Yield only; that is, call the yield function contained within this [`YieldProgress`].
     #[track_caller] // This is not an `async fn` because `track_caller` is not compatible
-    pub fn yield_without_progress(&self) -> impl Future<Output = ()> + Send + 'static {
+    pub fn yield_without_progress(&self) -> maybe_send_impl_future!(()) {
         let location = Location::caller();
         let label = self.label.clone();
 
@@ -254,17 +259,14 @@ impl YieldProgress {
     ///
     /// This is identical to `.progress(1.0)` but consumes the `YieldProgress` object.
     #[track_caller] // This is not an `async fn` because `track_caller` is not compatible
-    pub fn finish(self) -> impl Future<Output = ()> + Send + 'static {
+    pub fn finish(self) -> maybe_send_impl_future!(()) {
         self.progress(1.0)
     }
 
     /// Report that the given amount of progress has been made, then return
     /// a [`YieldProgress`] covering the remaining range.
     #[track_caller] // This is not an `async fn` because `track_caller` is not compatible
-    pub fn finish_and_cut(
-        self,
-        progress_fraction: f32,
-    ) -> impl Future<Output = Self> + Send + 'static {
+    pub fn finish_and_cut(self, progress_fraction: f32) -> maybe_send_impl_future!(Self) {
         let [a, b] = self.split(progress_fraction);
         let progress_future = a.finish();
         async move {
@@ -292,7 +294,7 @@ impl YieldProgress {
         &mut self,
         cut: f32,
         label: impl fmt::Display,
-    ) -> impl Future<Output = Self> + Send + 'static {
+    ) -> maybe_send_impl_future!(Self) {
         let cut_abs = self.point_in_range(cut);
         let mut portion = self.with_new_range(0.0, cut_abs);
         self.start = cut_abs;
@@ -309,8 +311,8 @@ impl YieldProgress {
             start,
             end,
             label: self.label.clone(),
-            yielding: Arc::clone(&self.yielding),
-            progressor: Arc::clone(&self.progressor),
+            yielding: MaRc::clone(&self.yielding),
+            progressor: MaRc::clone(&self.progressor),
         }
     }
 
@@ -345,9 +347,9 @@ impl<F: ?Sized + for<'a> Fn(&'a YieldInfo<'a>) -> BoxFuture<'static, ()> + Send 
     Yielding<F>
 {
     async fn yield_only(
-        self: Arc<Self>,
+        self: MaRc<Self>,
         location: &'static Location<'static>,
-        label: Option<Arc<str>>,
+        label: Option<MaRc<str>>,
     ) {
         // Note that we avoid holding the lock while calling yielder().
         // The worst outcome of an inconsistency is that we will output a meaningless

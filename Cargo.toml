@@ -11,6 +11,17 @@ keywords = ["yield", "progressbar"]
 publish = true
 exclude = [".github", ".vscode"]
 
+[features]
+default = ["sync"]
+# Implements `YieldProgress: Send + Sync` for use with multi-threaded executors.
+# Requires `std` to be available for the compilation target.
+sync = []
+
+[[example]]
+name = "interactive-cancel"
+required-features = ["sync"]
+test = false
+
 [dependencies]
 # Used for logging over-long intervals between yields. TODO: This should be pluggable and optional
 log = { version = "0.4.17", default-features = false }
