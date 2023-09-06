@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.1.3 (2023-09-05)
+
+* Fixed `ProgressInfo::label_str()` not being public.
 
 ## 0.1.2 (2023-09-05)
 
