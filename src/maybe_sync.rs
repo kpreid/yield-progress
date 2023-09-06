@@ -24,19 +24,17 @@ mod not_sync {
     pub(crate) use core::cell::RefCell as StateCell;
 
     /// For internal convenience, make `RefCell` look like `Mutex`.
+    ///
     /// This trait is only used as an extension trait for the method, not generically.
+    /// That is less code and lets us avoid use of a generic associated type, which is required
+    /// for our MSRV of 1.63 < 1.65.
     pub(crate) trait Mutexish {
-        type WriteGuard<'a>
-        where
-            Self: 'a;
-        type Error;
-        fn lock(&self) -> Result<Self::WriteGuard<'_>, Self::Error>;
+        type Target;
+        fn lock(&self) -> Result<std::cell::RefMut<'_, Self::Target>, std::cell::BorrowMutError>;
     }
     impl<T> Mutexish for std::cell::RefCell<T> {
-        type WriteGuard<'a> = std::cell::RefMut<'a, T> where T: 'a;
-        type Error = std::cell::BorrowMutError;
-
-        fn lock(&self) -> Result<Self::WriteGuard<'_>, Self::Error> {
+        type Target = T;
+        fn lock(&self) -> Result<std::cell::RefMut<'_, T>, std::cell::BorrowMutError> {
             self.try_borrow_mut()
         }
     }
