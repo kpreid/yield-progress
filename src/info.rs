@@ -16,7 +16,7 @@ impl<'a> ProgressInfo<'a> {
     }
 
     /// A label for the current portion of work.
-    pub(crate) fn label_str(&self) -> &str {
+    pub fn label_str(&self) -> &str {
         // This function is called `label_str()`, and does not return`&'a str`, to leave room for a
         // non-string label being offered as a non-breaking change.
         self.label
