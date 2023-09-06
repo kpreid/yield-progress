@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.1.2 (2023-09-05)
+
+Updated README for accuracy regarding the changes in v0.1.1.
+
+## 0.1.1 (2023-09-05)
+
 ### Added
 
 * `basic_yield_now()` is a yield function that may be adequate rather than writing your own.
