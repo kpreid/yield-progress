@@ -2,22 +2,22 @@ use core::future::Future;
 use core::panic::Location;
 
 use alloc::boxed::Box;
-use alloc::sync::Arc;
-
-use std::sync::Mutex;
 
 use instant::Instant;
 
+#[cfg(not(feature = "sync"))]
+use crate::Mutexish as _;
 use crate::{
-    basic_yield_now, BoxFuture, ProgressInfo, YieldInfo, YieldProgress, YieldState, Yielding,
+    basic_yield_now, BoxFuture, MaRc, ProgressInfo, StateCell, YieldInfo, YieldProgress,
+    YieldState, Yielding,
 };
 
 /// Builder for creating root [`YieldProgress`] instances.
 #[derive(Clone)]
 #[must_use]
 pub struct Builder {
-    yielding: Arc<Yielding<crate::YieldFn>>,
-    progressor: Arc<crate::ProgressFn>,
+    yielding: MaRc<Yielding<crate::YieldFn>>,
+    progressor: MaRc<crate::ProgressFn>,
 }
 
 impl Builder {
@@ -33,17 +33,17 @@ impl Builder {
     #[track_caller]
     pub fn new() -> Builder {
         Builder {
-            yielding: Arc::new(Yielding {
+            yielding: MaRc::new(Yielding {
                 yielder: move |_info: &YieldInfo<'_>| -> BoxFuture<'static, ()> {
                     Box::pin(basic_yield_now())
                 },
-                state: Mutex::new(YieldState {
+                state: StateCell::new(YieldState {
                     last_finished_yielding: Instant::now(),
                     last_yield_location: Location::caller(),
                     last_yield_label: None,
                 }),
             }),
-            progressor: Arc::new(|_| {}),
+            progressor: MaRc::new(|_| {}),
         }
     }
 
@@ -73,11 +73,11 @@ impl Builder {
         Y: for<'a> Fn(&'a YieldInfo<'a>) -> YFut + Send + Sync + 'static,
         YFut: Future<Output = ()> + Send + 'static,
     {
-        let new_yielding = Arc::new(Yielding {
+        let new_yielding = MaRc::new(Yielding {
             yielder: move |info: &YieldInfo<'_>| -> BoxFuture<'static, ()> {
                 Box::pin(function(info))
             },
-            state: Mutex::new(self.yielding.state.lock().unwrap().clone()),
+            state: StateCell::new(self.yielding.state.lock().unwrap().clone()),
         });
         self.yielding = new_yielding;
         self
@@ -91,7 +91,7 @@ impl Builder {
     where
         P: for<'a> Fn(&'a ProgressInfo<'a>) + Send + Sync + 'static,
     {
-        self.progressor = Arc::new(function);
+        self.progressor = MaRc::new(function);
         self
     }
 }

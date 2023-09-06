@@ -7,6 +7,7 @@
 * `basic_yield_now()` is a yield function that may be adequate rather than writing your own.
 * `Builder` is a builder for `YieldProgress` instances.
 * `ProgressInfo` and `YieldInfo` offer information to the callback functions.
+* Feature `sync` may be disabled to avoid requiring `std::sync`.
 
 ### Changed
 
