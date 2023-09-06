@@ -4,17 +4,22 @@
 This library, `yield-progress`, provides the `YieldProgress` type, which allows a long-running async task to report its progress, while also yielding to the scheduler (e.g. for the single-threaded web/Wasm environment) and introducing cancellation points.
 
 These things go together because the rate at which it makes sense to yield (to avoid event
-loop hangs) is similar to the rate at which it makes sense to report progress.
+loop hangs) is similar to the rate at which it makes sense to report progress,
+at least for human interfaces.
 
-`YieldProgress` is executor-independent; when it is constructed, the caller provides a function for
-yielding.
+Compatibility
+-------------
+
+* `YieldProgress` is executor-independent; when it is constructed, the caller may provide a function
+  for yielding using executor-specific mechanisms such as `tokio::task::yield_now()`,
+  or may use the built-in simple yielder.
+* The library is `no_std` compatible if default features are disabled.
+  See the library documentation for details on the consequences.
 
 Project status and stability
 ----------------------------
 
-`yield-progress` has been split out of my larger project [`all-is-cubes`](https://crates.io/crates/all-is-cubes) so that I can use it for other applications; its functionality and applicability may be limited but I believe it is free of bugs.
-
-Future versions may have API changes to permit `no_std` usage by not requiring `Sync` functions and `Arc`, but I expect it will be feasible to arrange interoperability between these different versions.
+`yield-progress` has been split out of my larger project [`all-is-cubes`](https://crates.io/crates/all-is-cubes) so that I can use it for other applications; its functionality and applicability may be limited, but I believe it is free of bugs.
 
 License
 -------
