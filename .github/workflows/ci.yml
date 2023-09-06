@@ -21,6 +21,7 @@ jobs:
     strategy:
       matrix:
         toolchain: [stable, 1.63.0, beta, nightly]
+        features: ['', 'sync']
 
     runs-on: ubuntu-latest
     continue-on-error: "${{ matrix.toolchain != 'nightly' && matrix.toolchain != 'beta' }}"
@@ -45,24 +46,24 @@ jobs:
 
     - name: Compile
       # compile is broken out so we have visibility into compile vs. run times
-      run: cargo test --all-features --timings --no-run
+      run: cargo test --no-default-features --features="${{ matrix.features }}" --timings --no-run
 
     - name: Run tests
-      run: cargo test --all-features
+      run: cargo test --no-default-features --features="${{ matrix.features }}" --timings
 
     - name: Compile on Wasm
       # We don't yet have tests that can run on Wasm, but this will check for compile success.
       # Examples can't all build on Wasm, so no --all-targets.
-      run: cargo build --target wasm32-unknown-unknown
+      run: cargo build --no-default-features --features="${{ matrix.features }}" --target wasm32-unknown-unknown
 
     - name: Update
       run: cargo update
 
     - name: Compile with updates
-      run: cargo test --timings --no-run
+      run: cargo test --no-default-features --features="${{ matrix.features }}" --timings --no-run
 
     - name: Test with updates
-      run: cargo test --timings
+      run: cargo test --no-default-features --features="${{ matrix.features }}" --timings
 
     # Save timing reports so we can download and view them
     # (for understanding build performance in CI)
