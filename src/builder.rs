@@ -3,8 +3,6 @@ use core::panic::Location;
 
 use alloc::boxed::Box;
 
-use instant::Instant;
-
 #[cfg(not(feature = "sync"))]
 use crate::Mutexish as _;
 use crate::{
@@ -38,7 +36,8 @@ impl Builder {
                     Box::pin(basic_yield_now())
                 },
                 state: StateCell::new(YieldState {
-                    last_finished_yielding: Instant::now(),
+                    #[cfg(feature = "log_hiccups")]
+                    last_finished_yielding: instant::Instant::now(),
                     last_yield_location: Location::caller(),
                     last_yield_label: None,
                 }),

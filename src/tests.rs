@@ -29,7 +29,7 @@ fn logging_yield_progress() -> (YieldProgress, YpLog) {
             let sender = sender.clone();
             move |_| {
                 let _ = sender.send(Entry::Yielded);
-                std::future::ready(())
+                core::future::ready(())
             }
         })
         .progress_using(move |info| {

@@ -11,7 +11,16 @@
 //! # Crate feature flags
 //!
 //! * `sync` (default): Implements `YieldProgress: Send + Sync` for use with multi-threaded executors.
+//!
 //!   Requires `std` to be available for the compilation target.
+//!
+//! * `log_hiccups`: Log intervals between yields longer than 100 ms, via the [`log`] library.
+//!
+//!   Requires `std` to be available for the compilation target.
+//!   This might be removed in favor of something more configurable in future versions,
+//!   in which case the feature flag may still exist but do nothing.
+//!
+//! [`log`]: https://docs.rs/log/0.4/
 
 #![no_std]
 #![deny(elided_lifetimes_in_paths)]
@@ -26,7 +35,8 @@
 #![warn(unused_lifetimes)]
 
 extern crate alloc;
-// TODO: Make thread-safety optional so we can be alloc-but-not-std
+
+#[cfg(any(test, feature = "sync"))]
 #[cfg_attr(test, macro_use)]
 extern crate std;
 
@@ -34,17 +44,12 @@ use core::fmt;
 use core::future::Future;
 use core::panic::Location;
 use core::pin::Pin;
-use core::time::Duration;
 
 use alloc::boxed::Box;
-use alloc::format;
 use alloc::string::ToString as _;
 
 #[cfg(doc)]
 use core::task::Poll;
-
-// TODO: Make time checks optional
-use instant::Instant;
 
 mod basic_yield;
 pub use basic_yield::basic_yield_now;
@@ -111,8 +116,11 @@ struct Yielding<F: ?Sized> {
 struct YieldState {
     /// The most recent instant at which `yielder`'s future completed.
     /// Used to detect overlong time periods between yields.
-    last_finished_yielding: Instant,
+    #[cfg(feature = "log_hiccups")]
+    last_finished_yielding: instant::Instant,
+
     last_yield_location: &'static Location<'static>,
+
     last_yield_label: Option<MaRc<str>>,
 }
 
@@ -134,11 +142,6 @@ impl YieldProgress {
     ///   and may perform other executor-specific actions to assist with scheduling other tasks.
     /// * `progressor` is called with the progress fraction (a number between 0 and 1) and a
     ///   label for the current portion of work (which will be `""` if no label has been set).
-    ///
-    /// It will also report any excessively-long intervals between yields using the [`log`]
-    /// library. “Excessively long” is currently defined as 100&nbsp;ms.
-    /// The first interval starts  when function is called, as if this is the first yield.
-    /// This may become more configurable in future versions.
     ///
     /// # Example
     ///
@@ -187,7 +190,7 @@ impl YieldProgress {
     #[deprecated = "use `yield_progress::Builder` instead"]
     pub fn noop() -> Self {
         Builder::new()
-            .yield_using(|_| std::future::ready(()))
+            .yield_using(|_| core::future::ready(()))
             .build()
     }
 
@@ -332,7 +335,7 @@ impl YieldProgress {
     pub fn split_evenly(
         self,
         count: usize,
-    ) -> impl DoubleEndedIterator<Item = YieldProgress> + ExactSizeIterator + std::iter::FusedIterator
+    ) -> impl DoubleEndedIterator<Item = YieldProgress> + ExactSizeIterator + core::iter::FusedIterator
     {
         (0..count).map(move |index| {
             self.with_new_range(
@@ -351,26 +354,34 @@ impl<F: ?Sized + for<'a> Fn(&'a YieldInfo<'a>) -> BoxFuture<'static, ()> + Send 
         location: &'static Location<'static>,
         label: Option<MaRc<str>>,
     ) {
-        // Note that we avoid holding the lock while calling yielder().
-        // The worst outcome of an inconsistency is that we will output a meaningless
-        // "between {location} and {location}" message, but none should occur because
-        // [`YieldProgress`] is intended to be used in a sequential manner.
-        let previous_state: YieldState = { self.state.lock().unwrap().clone() };
+        #[cfg(feature = "log_hiccups")]
+        {
+            #[allow(unused)] // may be redundant depending on other features
+            use alloc::format;
+            use core::time::Duration;
 
-        let delta = Instant::now().duration_since(previous_state.last_finished_yielding);
-        if delta > Duration::from_millis(100) {
-            let last_label = previous_state.last_yield_label;
-            log::trace!(
-                "Yielding after {delta} ms between {old_location} and {new_location} {rel}",
-                delta = delta.as_millis(),
-                old_location = previous_state.last_yield_location,
-                new_location = location,
-                rel = if label == last_label {
-                    format!("during {label:?}")
-                } else {
-                    format!("between {last_label:?} and {label:?}")
-                }
-            );
+            // Note that we avoid holding the lock while calling yielder().
+            // The worst outcome of an inconsistency is that we will output a meaningless
+            // "between {location} and {location}" message, but none should occur because
+            // [`YieldProgress`] is intended to be used in a sequential manner.
+            let previous_state: YieldState = { self.state.lock().unwrap().clone() };
+
+            let delta =
+                instant::Instant::now().duration_since(previous_state.last_finished_yielding);
+            if delta > Duration::from_millis(100) {
+                let last_label = previous_state.last_yield_label;
+                log::trace!(
+                    "Yielding after {delta} ms between {old_location} and {new_location} {rel}",
+                    delta = delta.as_millis(),
+                    old_location = previous_state.last_yield_location,
+                    new_location = location,
+                    rel = if label == last_label {
+                        format!("during {label:?}")
+                    } else {
+                        format!("between {last_label:?} and {label:?}")
+                    }
+                );
+            }
         }
 
         // TODO: Since we're tracking time, we might as well decide whether to not bother
@@ -380,9 +391,14 @@ impl<F: ?Sized + for<'a> Fn(&'a YieldInfo<'a>) -> BoxFuture<'static, ()> + Send 
 
         {
             let mut state = self.state.lock().unwrap();
-            state.last_finished_yielding = Instant::now();
+
             state.last_yield_location = location;
             state.last_yield_label = label;
+
+            #[cfg(feature = "log_hiccups")]
+            {
+                state.last_finished_yielding = instant::Instant::now();
+            }
         }
     }
 }

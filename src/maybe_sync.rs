@@ -30,11 +30,11 @@ mod not_sync {
     /// for our MSRV of 1.63 < 1.65.
     pub(crate) trait Mutexish {
         type Target;
-        fn lock(&self) -> Result<std::cell::RefMut<'_, Self::Target>, std::cell::BorrowMutError>;
+        fn lock(&self) -> Result<core::cell::RefMut<'_, Self::Target>, core::cell::BorrowMutError>;
     }
-    impl<T> Mutexish for std::cell::RefCell<T> {
+    impl<T> Mutexish for core::cell::RefCell<T> {
         type Target = T;
-        fn lock(&self) -> Result<std::cell::RefMut<'_, T>, std::cell::BorrowMutError> {
+        fn lock(&self) -> Result<core::cell::RefMut<'_, T>, core::cell::BorrowMutError> {
             self.try_borrow_mut()
         }
     }
