@@ -21,7 +21,7 @@ jobs:
     strategy:
       matrix:
         toolchain: [stable, 1.63.0, beta, nightly]
-        features: ['', 'sync']
+        features: ['', 'sync', 'sync,log_hiccups']
 
     runs-on: ubuntu-latest
     continue-on-error: "${{ matrix.toolchain != 'nightly' && matrix.toolchain != 'beta' }}"
@@ -74,6 +74,35 @@ jobs:
         name: cargo-timings ${{ matrix.toolchain }}
         path: |
           target/cargo-timings/cargo-timing-*.html
+
+  no_std:
+    runs-on: ubuntu-latest
+  
+    steps:
+    - uses: actions/checkout@v3.1.0
+
+    - name: Install Rust toolchain
+      run: |
+          rustup toolchain install stable --profile=minimal --component=clippy
+          rustup target add --toolchain=stable thumbv7em-none-eabihf
+          rustup override set stable
+
+    - uses: Swatinem/rust-cache@v2.0.2
+  
+    - name: Compile
+      run: cargo build --no-default-features --target thumbv7em-none-eabihf --timings
+
+    - name: Lint
+      run: |
+        cargo clippy --timings
+        cargo rustdoc -- -Drustdoc::broken_intra_doc_links
+
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3.1.0  
+    # GitHub runners already have rustfmt installed.
+    - run: cargo fmt --check --all
 
   semver:
     runs-on: ubuntu-latest
