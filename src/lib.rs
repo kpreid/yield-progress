@@ -296,7 +296,7 @@ impl YieldProgress {
         label: impl fmt::Display,
     ) -> maybe_send_impl_future!(Self) {
         let cut_abs = self.point_in_range(cut);
-        let mut portion = self.with_new_range(0.0, cut_abs);
+        let mut portion = self.with_new_range(self.start, cut_abs);
         self.start = cut_abs;
 
         portion.set_label(label);
