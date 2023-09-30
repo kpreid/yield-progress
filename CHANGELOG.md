@@ -1,5 +1,7 @@
 # Changelog
 
+## Unreleased
+
 ## 0.1.4 (2023-09-30)
 
 * Fixed `YieldProgress::start_and_cut()` always using zero as the start position.
