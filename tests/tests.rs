@@ -126,16 +126,22 @@ async fn finish_and_cut() {
 async fn start_and_cut() {
     let (mut p, mut r) = logging_yield_progress();
 
-    let piece = p.start_and_cut(0.5, "part 1").await;
+    let piece_1 = p.start_and_cut(0.25, "part 1").await;
     assert_eq!(r.drain(), vec![Progress(0.0, "part 1".into()), Yielded]);
 
     // The cut off piece is the first half.
-    piece.finish().await;
-    assert_eq!(r.drain(), vec![Progress(0.5, "part 1".into()), Yielded]);
+    piece_1.finish().await;
+    assert_eq!(r.drain(), vec![Progress(0.25, "part 1".into()), Yielded]);
 
-    // `p` is left with the remaining second half.
+    // Cut another piece, checking the starting point
+    let piece_2 = p.start_and_cut(0.5, "part 2").await;
+    assert_eq!(r.drain(), vec![Progress(0.25, "part 2".into()), Yielded]);
+    piece_2.finish().await;
+    assert_eq!(r.drain(), vec![Progress(0.625, "part 2".into()), Yielded]);
+
+    // `p` is left with the remaining progress.
     p.progress(0.5).await;
-    assert_eq!(r.drain(), vec![Progress(0.75, "".into()), Yielded]);
+    assert_eq!(r.drain(), vec![Progress(0.8125, "".into()), Yielded]);
     p.finish().await;
     assert_eq!(r.drain(), vec![Progress(1.0, "".into()), Yielded, Dropped]);
 }
