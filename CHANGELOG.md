@@ -1,9 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.1.5 (2023-12-25)
 
-### Removed
-
+* `YieldProgress::noop()` is no longer deprecated.
 * Replaced the optional `instant` dependency with `web-time`.
   If you previously found it necessary to declare the `instant/wasm-bindgen` feature,
   you will no longer need to do this.
