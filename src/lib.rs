@@ -86,7 +86,7 @@ type YieldFn = dyn for<'a> Fn(&'a YieldInfo<'a>) -> BoxFuture<'static, ()> + Sen
 ///
 /// ---
 ///
-/// To construct a [`YieldProgress`], use the [`Builder`].
+/// To construct a [`YieldProgress`], use the [`Builder`], or [`noop()`](YieldProgress::noop).
 pub struct YieldProgress {
     start: f32,
     end: f32,
@@ -173,7 +173,12 @@ impl YieldProgress {
             .build()
     }
 
-    /// Returns a [`YieldProgress`] that does no progress reporting and no yielding.
+    /// Returns a [`YieldProgress`] that does no progress reporting **and no yielding at all**.
+    ///
+    /// This may be used, for example, to call a function that accepts [`YieldProgress`] and
+    /// is not `async` for any other reason.
+    /// It should not be used merely because no progress reporting is desired; in that case
+    /// use [`Builder`] instead so that a yield function can be provided.
     ///
     /// # Example
     ///
@@ -187,7 +192,6 @@ impl YieldProgress {
     /// progress.progress(0.12345).await;
     /// # }
     /// ```
-    #[deprecated = "use `yield_progress::Builder` instead"]
     pub fn noop() -> Self {
         Builder::new()
             .yield_using(|_| core::future::ready(()))
