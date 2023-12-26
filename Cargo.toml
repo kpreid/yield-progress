@@ -20,7 +20,7 @@ sync = []
 # Requires `std` to be available for the compilation target.
 # This might be removed in favor of something more configurable in future versions,
 # in which case the feature flag may still exist but do nothing.
-log_hiccups = ["dep:log", "dep:instant"]
+log_hiccups = ["dep:log", "dep:web-time"]
 
 [[example]]
 name = "interactive-cancel"
@@ -31,7 +31,7 @@ test = false
 # Used for logging over-long intervals between yields. TODO: This should be pluggable instead
 log = { version = "0.4.17", optional = true, default-features = false }
 # Used for reading the current time on wasm. TODO: This should be pluggable instead
-instant = { version = "0.1.12", optional = true }
+web-time = { version = "0.2.3", optional = true }
 
 [dev-dependencies.tokio]
 version = "1.28.0"

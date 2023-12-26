@@ -37,7 +37,7 @@ impl Builder {
                 },
                 state: StateCell::new(YieldState {
                     #[cfg(feature = "log_hiccups")]
-                    last_finished_yielding: instant::Instant::now(),
+                    last_finished_yielding: web_time::Instant::now(),
                     last_yield_location: Location::caller(),
                     last_yield_label: None,
                 }),

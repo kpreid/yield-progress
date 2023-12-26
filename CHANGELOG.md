@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Removed
+
+* Replaced the optional `instant` dependency with `web-time`.
+  If you previously found it necessary to declare the `instant/wasm-bindgen` feature,
+  you will no longer need to do this.
+
 ## 0.1.4 (2023-09-30)
 
 * Fixed `YieldProgress::start_and_cut()` always using zero as the start position.

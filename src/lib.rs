@@ -51,6 +51,9 @@ use alloc::string::ToString as _;
 #[cfg(doc)]
 use core::task::Poll;
 
+#[cfg(feature = "log_hiccups")]
+use web_time::Instant;
+
 mod basic_yield;
 pub use basic_yield::basic_yield_now;
 
@@ -114,7 +117,7 @@ struct YieldState {
     /// The most recent instant at which `yielder`'s future completed.
     /// Used to detect overlong time periods between yields.
     #[cfg(feature = "log_hiccups")]
-    last_finished_yielding: instant::Instant,
+    last_finished_yielding: Instant,
 
     last_yield_location: &'static Location<'static>,
 
@@ -363,8 +366,7 @@ impl<F: ?Sized + for<'a> Fn(&'a YieldInfo<'a>) -> BoxFuture<'static, ()> + Send 
             // [`YieldProgress`] is intended to be used in a sequential manner.
             let previous_state: YieldState = { self.state.lock().unwrap().clone() };
 
-            let delta =
-                instant::Instant::now().duration_since(previous_state.last_finished_yielding);
+            let delta = Instant::now().duration_since(previous_state.last_finished_yielding);
             if delta > Duration::from_millis(100) {
                 let last_label = previous_state.last_yield_label;
                 log::trace!(
@@ -394,7 +396,7 @@ impl<F: ?Sized + for<'a> Fn(&'a YieldInfo<'a>) -> BoxFuture<'static, ()> + Send 
 
             #[cfg(feature = "log_hiccups")]
             {
-                state.last_finished_yielding = instant::Instant::now();
+                state.last_finished_yielding = Instant::now();
             }
         }
     }
