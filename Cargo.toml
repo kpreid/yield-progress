@@ -31,7 +31,7 @@ test = false
 # Used for logging over-long intervals between yields. TODO: This should be pluggable instead
 log = { version = "0.4.17", optional = true, default-features = false }
 # Used for reading the current time on wasm. TODO: This should be pluggable instead
-web-time = { version = "0.2.3", optional = true }
+web-time = { version = "1.0.0", optional = true }
 
 [dev-dependencies.tokio]
 version = "1.28.0"
