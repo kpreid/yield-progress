@@ -327,6 +327,7 @@ impl YieldProgress {
     /// subranges.
     ///
     /// The returned instances should be used in sequence, but this is not enforced.
+    /// Using them concurrently will result in the progress bar jumping backwards.
     pub fn split(self, cut: f32) -> [Self; 2] {
         let cut_abs = self.point_in_range(cut);
         [
@@ -336,6 +337,9 @@ impl YieldProgress {
     }
 
     /// Split into even subdivisions.
+    ///
+    /// The returned instances should be used in sequence, but this is not enforced.
+    /// Using them concurrently will result in the progress bar jumping backwards.
     pub fn split_evenly(
         self,
         count: usize,
