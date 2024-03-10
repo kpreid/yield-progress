@@ -33,6 +33,7 @@
 #![warn(clippy::wrong_self_convention)]
 #![warn(missing_docs)]
 #![warn(unused_lifetimes)]
+#![warn(unused_qualifications)]
 
 extern crate alloc;
 
@@ -42,6 +43,7 @@ extern crate std;
 
 use core::fmt;
 use core::future::Future;
+use core::iter::FusedIterator;
 use core::panic::Location;
 use core::pin::Pin;
 
@@ -60,6 +62,9 @@ pub use basic_yield::basic_yield_now;
 mod builder;
 pub use builder::Builder;
 
+mod concurrent;
+use concurrent::ConcurrentProgress;
+
 mod maybe_sync;
 use maybe_sync::*;
 
@@ -69,7 +74,12 @@ pub use info::{ProgressInfo, YieldInfo};
 /// We could import this alias from `futures-core` but that would be another non-dev dependency.
 type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
+// We allow !Sync progress functions but only internally; this type doesn't control the API.
+#[cfg(feature = "sync")]
 type ProgressFn = dyn for<'a> Fn(&'a ProgressInfo<'a>) + Send + Sync + 'static;
+#[cfg(not(feature = "sync"))]
+type ProgressFn = dyn for<'a> Fn(&'a ProgressInfo<'a>) + 'static;
+
 type YieldFn = dyn for<'a> Fn(&'a YieldInfo<'a>) -> BoxFuture<'static, ()> + Send + Sync;
 
 /// Allows a long-running async task to report its progress, while also yielding to the
@@ -99,7 +109,7 @@ pub struct YieldProgress {
     /// inheritance from having been explicitly set.
     label: Option<MaRc<str>>,
 
-    yielding: MaRc<Yielding<YieldFn>>,
+    yielding: BoxYielding,
     // TODO: change progress reporting interface to support efficient handling of
     // the label string being the same as last time.
     progressor: MaRc<ProgressFn>,
@@ -111,6 +121,8 @@ struct Yielding<F: ?Sized> {
 
     yielder: F,
 }
+
+type BoxYielding = MaRc<Yielding<YieldFn>>;
 
 #[derive(Clone)]
 struct YieldState {
@@ -206,7 +218,11 @@ impl YieldProgress {
     /// This does not immediately report progress; that is, the label will not be visible
     /// anywhere until the next operation that does. Future versions may report it immediately.
     pub fn set_label(&mut self, label: impl fmt::Display) {
-        self.label = Some(MaRc::from(label.to_string()))
+        self.set_label_internal(Some(MaRc::from(label.to_string())))
+    }
+
+    fn set_label_internal(&mut self, label: Option<MaRc<str>>) {
+        self.label = label;
     }
 
     /// Map a `0..=1` value to `self.start..=self.end`.
@@ -243,14 +259,7 @@ impl YieldProgress {
     #[track_caller]
     pub fn progress_without_yield(&self, progress_fraction: f32) {
         let location = Location::caller();
-        (self.progressor)(&ProgressInfo {
-            fraction: self.point_in_range(progress_fraction),
-            label: self
-                .label
-                .as_ref()
-                .map_or("", |arc_str_ref| -> &str { arc_str_ref }),
-            location,
-        });
+        self.send_progress(progress_fraction, self.label.as_ref(), location);
     }
 
     /// Yield only; that is, call the yield function contained within this [`YieldProgress`].
@@ -260,6 +269,22 @@ impl YieldProgress {
         let label = self.label.clone();
 
         self.yielding.clone().yield_only(location, label)
+    }
+
+    /// Assemble a [`ProgressInfo`] using self's range and send it to the progress function.
+    /// This differs from `progress_without_yield()` by taking an explicit label and location;
+    /// only the range and destination from `self` is used.
+    fn send_progress(
+        &self,
+        progress_fraction: f32,
+        label: Option<&MaRc<str>>,
+        location: &Location<'_>,
+    ) {
+        (self.progressor)(&ProgressInfo {
+            fraction: self.point_in_range(progress_fraction),
+            label,
+            location,
+        });
     }
 
     /// Report that 100% of progress has been made.
@@ -336,20 +361,48 @@ impl YieldProgress {
         ]
     }
 
-    /// Split into even subdivisions.
+    /// Construct many new [`YieldProgress`] which together divide the progress value into
+    /// `count` subranges.
     ///
     /// The returned instances should be used in sequence, but this is not enforced.
     /// Using them concurrently will result in the progress bar jumping backwards.
     pub fn split_evenly(
         self,
         count: usize,
-    ) -> impl DoubleEndedIterator<Item = YieldProgress> + ExactSizeIterator + core::iter::FusedIterator
-    {
+    ) -> impl DoubleEndedIterator<Item = YieldProgress> + ExactSizeIterator + FusedIterator {
         (0..count).map(move |index| {
             self.with_new_range(
                 self.point_in_range(index as f32 / count as f32),
                 self.point_in_range((index as f32 + 1.0) / count as f32),
             )
+        })
+    }
+
+    /// Construct many new [`YieldProgress`] which will collectively advance `self` to completion
+    /// when they have all been advanced to completion, and which may be used concurrently.
+    ///
+    /// This is identical in effect to [`YieldProgress::split_evenly()`], except that it comprehends
+    /// concurrent operations — the progress of `self` is the sum of the progress of the subtasks.
+    /// To support this, it must allocate storage for the state tracking and synchronization, and
+    /// every progress update must calculate the sum from all subtasks. Therefore, for efficiency,
+    /// do not use this except when concurrency is actually present.
+    ///
+    /// The label passed through will be the label from the first subtask that has a progress
+    /// value less than 1.0. This choice may be changed in the future if the label system is
+    /// elaborated.
+    pub fn split_concurrent(
+        self,
+        count: usize,
+    ) -> impl DoubleEndedIterator<Item = YieldProgress> + ExactSizeIterator + FusedIterator {
+        let yielding = self.yielding.clone();
+        let conc = ConcurrentProgress::new(self, count);
+        (0..count).map(move |index| {
+            let mut builder = Builder::new().yielding_internal(yielding.clone());
+            // The progressor may be `!Sync` if our `sync` feature is disabled.
+            // This is prohibited in our API, but it's safe for us as long as we match the feature.
+            // Therefore, bypass the method and assign the field directly.
+            builder.progressor = MaRc::new(MaRc::clone(&conc).progressor(index));
+            builder.build()
         })
     }
 }

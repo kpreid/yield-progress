@@ -189,4 +189,33 @@ async fn split_evenly_with_max() {
     assert_eq!(r.drain(), vec![Progress(1.0, "".into()), Yielded, Dropped]);
 }
 
+#[tokio::test]
+async fn split_concurrent() {
+    let (p, mut r) = logging_yield_progress();
+    let mut iter = p.split_concurrent(2);
+    let mut p1 = iter.next().unwrap();
+    let mut p2 = iter.next().unwrap();
+    p1.set_label("p1");
+    p2.set_label("p2");
+    p1.progress(0.5).await;
+    p2.progress(0.5).await;
+    p1.finish().await;
+    p2.finish().await;
+    // TODO: we should have a better rule for combining labels.
+    // This test is looking for "first nonempty nonfinished label".
+    assert_eq!(
+        r.drain(),
+        vec![
+            Progress(0.25, "p1".into()),
+            Yielded,
+            Progress(0.5, "p1".into()),
+            Yielded,
+            Progress(0.75, "p2".into()),
+            Yielded,
+            Progress(1.0, "".into()),
+            Yielded,
+        ]
+    );
+}
+
 // TODO: test split()
