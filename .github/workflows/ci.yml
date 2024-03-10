@@ -38,6 +38,10 @@ jobs:
 
     # Load cache before doing any Rust builds
     - uses: Swatinem/rust-cache@v2.0.2
+      with:
+        # Split by toolchain to avoid collisions.
+        # We'll still collide on features, but that should be mostly okay and save some disk.
+        prefix-key: "v1-rust-${{ matrix.toolchain }}"
 
     - name: Lint
       run: |
