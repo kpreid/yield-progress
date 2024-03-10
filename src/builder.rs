@@ -15,7 +15,8 @@ use crate::{
 #[must_use]
 pub struct Builder {
     yielding: MaRc<Yielding<crate::YieldFn>>,
-    progressor: MaRc<crate::ProgressFn>,
+    /// public to allow overriding the API `Sync` requirement
+    pub(crate) progressor: MaRc<crate::ProgressFn>,
 }
 
 impl Builder {
@@ -78,6 +79,12 @@ impl Builder {
             },
             state: StateCell::new(self.yielding.state.lock().unwrap().clone()),
         });
+        self.yielding = new_yielding;
+        self
+    }
+
+    /// Internal version of `yield_using` which takes an already boxed function and yielding state.
+    pub(crate) fn yielding_internal(mut self, new_yielding: crate::BoxYielding) -> Self {
         self.yielding = new_yielding;
         self
     }

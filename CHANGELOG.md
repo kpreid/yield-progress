@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+* Added `YieldProgress::split_concurrent()` for reporting progress from concurrent tasks.
+
 ## 0.1.5 (2023-12-25)
 
 * `YieldProgress::noop()` is no longer deprecated.

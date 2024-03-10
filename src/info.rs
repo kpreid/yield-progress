@@ -3,7 +3,7 @@ use core::panic::Location;
 /// Information available to a progress callback.
 pub struct ProgressInfo<'a> {
     pub(crate) fraction: f32,
-    pub(crate) label: &'a str,
+    pub(crate) label: Option<&'a crate::MaRc<str>>,
     pub(crate) location: &'a Location<'a>,
 }
 impl<'a> ProgressInfo<'a> {
@@ -19,7 +19,7 @@ impl<'a> ProgressInfo<'a> {
     pub fn label_str(&self) -> &str {
         // This function is called `label_str()`, and does not return`&'a str`, to leave room for a
         // non-string label being offered as a non-breaking change.
-        self.label
+        self.label.map_or("", |label_rc| &**label_rc)
     }
 
     /// Source code location which reported the progress.
