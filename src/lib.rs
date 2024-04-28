@@ -390,7 +390,7 @@ impl YieldProgress {
     /// The label passed through will be the label from the first subtask that has a progress
     /// value less than 1.0. This choice may be changed in the future if the label system is
     /// elaborated.
-    pub fn split_concurrent(
+    pub fn split_evenly_concurrent(
         self,
         count: usize,
     ) -> impl DoubleEndedIterator<Item = YieldProgress> + ExactSizeIterator + FusedIterator {
