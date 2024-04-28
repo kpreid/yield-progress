@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.6 (2024-04-28)
 
 * Added `YieldProgress::split_evenly_concurrent()` for reporting progress from concurrent tasks.
 
