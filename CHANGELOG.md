@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.1.7 (2024-06-30)
+
+* Reduced the size of futures produced by the library, for efficiency.
 
 ## 0.1.6 (2024-04-28)
 
