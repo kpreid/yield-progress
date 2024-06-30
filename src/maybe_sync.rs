@@ -10,6 +10,8 @@ mod sync {
     pub(crate) use std::sync::Arc as MaRc;
     pub(crate) use std::sync::Mutex as StateCell;
 
+    // stub definition; the real one is only used when the feature is disabled
+    #[allow(dead_code)]
     pub(crate) trait Mutexish {}
 
     macro_rules! maybe_send_impl_future {
