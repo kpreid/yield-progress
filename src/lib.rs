@@ -299,10 +299,12 @@ impl YieldProgress {
     /// a [`YieldProgress`] covering the remaining range.
     #[track_caller] // This is not an `async fn` because `track_caller` is not compatible
     pub fn finish_and_cut(self, progress_fraction: f32) -> maybe_send_impl_future!(Self) {
+        // Efficiency note: this is structured so that `a` can be dropped immediately
+        // and does not live on in the future.
         let [a, b] = self.split(progress_fraction);
-        let progress_future = a.finish();
+        a.progress_without_yield(1.0);
         async move {
-            progress_future.await;
+            b.yield_without_progress().await;
             b
         }
     }
