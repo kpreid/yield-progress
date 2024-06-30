@@ -409,14 +409,15 @@ impl YieldProgress {
     }
 }
 
-impl<F: ?Sized + for<'a> Fn(&'a YieldInfo<'a>) -> BoxFuture<'static, ()> + Send + Sync>
-    Yielding<F>
+impl<F> Yielding<F>
+where
+    F: ?Sized + for<'a> Fn(&'a YieldInfo<'a>) -> BoxFuture<'static, ()> + Send + Sync,
 {
-    async fn yield_only(
+    fn yield_only(
         self: MaRc<Self>,
         location: &'static Location<'static>,
-        label: Option<MaRc<str>>,
-    ) {
+        mut label: Option<MaRc<str>>,
+    ) -> impl Future<Output = ()> {
         #[cfg(feature = "log_hiccups")]
         {
             #[allow(unused)] // may be redundant depending on other features
@@ -449,17 +450,28 @@ impl<F: ?Sized + for<'a> Fn(&'a YieldInfo<'a>) -> BoxFuture<'static, ()> + Send 
         // TODO: Since we're tracking time, we might as well decide whether to not bother
         // yielding if it has been a short time ... except that different yielders might
         // want different granularities/policies.
-        (self.yielder)(&YieldInfo { location }).await;
 
-        {
-            let mut state = self.state.lock().unwrap();
+        // Efficiency: This explicit `async` block somehow improves the future data size,
+        // compared to `async fn`, by not allocating both a local and a capture for all of
+        // `self`, `location`, and `label`. Seems odd that this helps...
+        async move {
+            let yield_future = {
+                // Efficiency: This block avoids holding the temp `YieldInfo` across the await.
+                (self.yielder)(&YieldInfo { location })
+            };
+            yield_future.await;
 
-            state.last_yield_location = location;
-            state.last_yield_label = label;
-
-            #[cfg(feature = "log_hiccups")]
             {
-                state.last_finished_yielding = Instant::now();
+                let mut state = self.state.lock().unwrap();
+
+                state.last_yield_location = location;
+                // Efficiency: this `Option::take()` avoids generating a drop flag.
+                state.last_yield_label = label.take();
+
+                #[cfg(feature = "log_hiccups")]
+                {
+                    state.last_finished_yielding = Instant::now();
+                }
             }
         }
     }
