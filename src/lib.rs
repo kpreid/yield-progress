@@ -413,6 +413,7 @@ impl<F> Yielding<F>
 where
     F: ?Sized + for<'a> Fn(&'a YieldInfo<'a>) -> BoxFuture<'static, ()> + Send + Sync,
 {
+    #[allow(clippy::manual_async_fn)] // false positive from cfg
     fn yield_only(
         self: MaRc<Self>,
         location: &'static Location<'static>,

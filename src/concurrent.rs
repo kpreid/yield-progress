@@ -53,8 +53,7 @@ impl ConcurrentProgress {
             let first_incomplete_label = children
                 .iter()
                 .filter(|child_state| child_state.fraction < 1.0)
-                .filter_map(|child_state| child_state.label.as_ref())
-                .next();
+                .find_map(|child_state| child_state.label.as_ref());
 
             // Deliver combined results.
             self.parent
