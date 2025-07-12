@@ -61,12 +61,18 @@ jobs:
       run: cargo build --no-default-features --features="${{ matrix.features }}" --target wasm32-unknown-unknown
 
     - name: Update
+      # can't update because 1.63.0 is too old for MSRV-aware resolver
+      if: ${{ matrix.toolchain != '1.63.0' }}
       run: cargo update
 
     - name: Compile with updates
+      # can't update because 1.63.0 is too old for MSRV-aware resolver
+      if: ${{ matrix.toolchain != '1.63.0' }}
       run: cargo test --no-default-features --features="${{ matrix.features }}" --timings --no-run
 
     - name: Test with updates
+      # can't update because 1.63.0 is too old for MSRV-aware resolver
+      if: ${{ matrix.toolchain != '1.63.0' }}
       run: cargo test --no-default-features --features="${{ matrix.features }}" --timings
 
     # Save timing reports so we can download and view them
