@@ -37,8 +37,7 @@
 
 extern crate alloc;
 
-#[cfg(any(test, feature = "sync", feature = "log_hiccups"))]
-#[cfg_attr(test, macro_use)]
+#[cfg(any(feature = "sync", feature = "log_hiccups"))]
 extern crate std;
 
 use core::fmt;

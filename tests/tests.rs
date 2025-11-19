@@ -1,5 +1,3 @@
-use std::prelude::rust_2021::*;
-
 use tokio::sync::mpsc::{self, error::TryRecvError};
 
 use yield_progress::{Builder, YieldProgress};
