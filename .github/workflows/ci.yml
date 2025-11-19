@@ -20,6 +20,7 @@ jobs:
   test:
     strategy:
       matrix:
+        # Keep this in sync with the `semver` job's matrix
         toolchain: [stable, 1.63.0, beta, nightly]
         features: ['', 'sync', 'log_hiccups', 'sync,log_hiccups']
 
@@ -115,6 +116,11 @@ jobs:
     - run: cargo fmt --check --all
 
   semver:
+    strategy:
+      matrix:
+        # Keep this in sync with the `test` job's matrix
+        features: ['', 'sync', 'log_hiccups', 'sync,log_hiccups']
+
     runs-on: ubuntu-latest
   
     steps:
@@ -127,3 +133,6 @@ jobs:
       # Use workspace target dir for cargo install's build, so that the build will be cached.
       env:
         CARGO_TARGET_DIR: target/
+      with:
+        feature-group: only-explicit-features
+        features: "${{ matrix.features }}"
