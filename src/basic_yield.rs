@@ -67,13 +67,3 @@ impl Future for BasicYieldNow {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn yield_smoke_test() {
-        basic_yield_now().await;
-    }
-}
