@@ -62,8 +62,8 @@ pub use basic_yield::basic_yield_now;
 mod builder;
 pub use builder::Builder;
 
+#[cfg(feature = "sync")]
 mod concurrent;
-use concurrent::ConcurrentProgress;
 
 mod maybe_sync;
 use maybe_sync::*;
@@ -403,19 +403,18 @@ impl YieldProgress {
     /// The label passed through will be the label from the first subtask that has a progress
     /// value less than 1.0. This choice may be changed in the future if the label system is
     /// elaborated.
+    #[cfg(feature = "sync")]
     pub fn split_evenly_concurrent(
         self,
         count: usize,
     ) -> impl DoubleEndedIterator<Item = YieldProgress> + ExactSizeIterator + FusedIterator {
         let yielding = self.yielding.clone();
-        let conc = ConcurrentProgress::new(self, count);
+        let conc = concurrent::ConcurrentProgress::new(self, count);
         (0..count).map(move |index| {
-            let mut builder = Builder::new().yielding_internal(yielding.clone());
-            // The progressor may be `!Sync` if our `sync` feature is disabled.
-            // This is prohibited in our API, but it's safe for us as long as we match the feature.
-            // Therefore, bypass the method and assign the field directly.
-            builder.progressor = Arc::new(Arc::clone(&conc).progressor(index));
-            builder.build()
+            Builder::new()
+                .yielding_internal(yielding.clone())
+                .progress_using(Arc::clone(&conc).progressor(index))
+                .build()
         })
     }
 }
