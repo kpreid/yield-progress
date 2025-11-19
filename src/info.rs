@@ -3,7 +3,7 @@ use core::panic::Location;
 /// Information available to a progress callback.
 pub struct ProgressInfo<'a> {
     pub(crate) fraction: f32,
-    pub(crate) label: Option<&'a crate::MaRc<str>>,
+    pub(crate) label: Option<&'a crate::Label>,
     pub(crate) location: &'a Location<'a>,
 }
 impl<'a> ProgressInfo<'a> {
