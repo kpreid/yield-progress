@@ -2,6 +2,10 @@
 
 ## 0.2.0 (Unreleased)
 
+### Added
+
+* The `YieldProgress` type now always implements `Send + Sync` regardless of enabled features.
+
 ### Removed
 
 * `YieldProgress::split_evenly_concurrent()` is now only available if the `"sync"` feature is
