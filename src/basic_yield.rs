@@ -33,7 +33,7 @@ use super::YieldProgress;
 ///
 /// [wake]: core::task::Waker::wake()
 /// [`tokio::task::yield_now()`]: https://docs.rs/tokio/1/tokio/task/fn.yield_now.html
-pub fn basic_yield_now() -> impl Future<Output = ()> + fmt::Debug + Send + 'static {
+pub fn basic_yield_now() -> impl Future<Output = ()> + fmt::Debug + Send {
     BasicYieldNow { state: State::New }
 }
 

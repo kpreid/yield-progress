@@ -21,7 +21,7 @@ jobs:
     strategy:
       matrix:
         # Keep this in sync with the `semver` job's matrix
-        toolchain: [stable, 1.63.0, beta, nightly]
+        toolchain: [stable, 1.85.0, beta, nightly]
         features: ['', 'sync', 'log_hiccups', 'sync,log_hiccups']
 
     runs-on: ubuntu-latest

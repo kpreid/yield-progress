@@ -3,7 +3,7 @@ use core::future::Future;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 
-use crate::{basic_yield_now, BoxFuture, ProgressInfo, YieldInfo, YieldProgress, Yielding};
+use crate::{BoxFuture, ProgressInfo, YieldInfo, YieldProgress, Yielding, basic_yield_now};
 
 /// Builder for creating root [`YieldProgress`] instances.
 #[derive(Clone)]
