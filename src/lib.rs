@@ -140,44 +140,6 @@ impl fmt::Debug for YieldProgress {
 }
 
 impl YieldProgress {
-    /// Construct a new [`YieldProgress`], which will call `yielder` to yield and
-    /// `progressor` to report progress.
-    ///
-    /// * `yielder` should return a `Future` that returns [`Poll::Pending`] at least once,
-    ///   and may perform other executor-specific actions to assist with scheduling other tasks.
-    /// * `progressor` is called with the progress fraction (a number between 0 and 1) and a
-    ///   label for the current portion of work (which will be `""` if no label has been set).
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use yield_progress::YieldProgress;
-    /// # struct Pb;
-    /// # impl Pb { fn set_value(&self, _value: f32) {} }
-    /// # let some_progress_bar = Pb;
-    /// // let some_progress_bar = ...;
-    ///
-    /// let progress = YieldProgress::new(
-    ///     tokio::task::yield_now,
-    ///     move |fraction, _label| {
-    ///         some_progress_bar.set_value(fraction);
-    ///     }
-    /// );
-    /// ```
-    #[track_caller]
-    #[deprecated = "use `yield_progress::Builder` instead"]
-    pub fn new<Y, YFut, P>(yielder: Y, progressor: P) -> Self
-    where
-        Y: Fn() -> YFut + Send + Sync + 'static,
-        YFut: Future<Output = ()> + Send + 'static,
-        P: Fn(f32, &str) + Send + Sync + 'static,
-    {
-        Builder::new()
-            .yield_using(move |_| yielder())
-            .progress_using(move |info| progressor(info.fraction(), info.label_str()))
-            .build()
-    }
-
     /// Returns a [`YieldProgress`] that does no progress reporting **and no yielding at all**.
     ///
     /// This may be used, for example, to call a function that accepts [`YieldProgress`] and
