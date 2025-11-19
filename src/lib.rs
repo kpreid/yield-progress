@@ -84,11 +84,6 @@ type Label = Arc<str>;
 /// These things go together because the rate at which it makes sense to yield (to avoid event
 /// loop hangs) is similar to the rate at which it makes sense to report progress.
 ///
-/// Note that while a [`YieldProgress`] is [`Send`] and [`Sync`] in order to be used within tasks
-/// that may be moved between threads, it does not currently support meaningfully being used from
-/// multiple threads or futures at once — only within a fully sequential operation. Future versions
-/// may include a “parallel split” operation but the current one does not.
-///
 /// ---
 ///
 /// To construct a [`YieldProgress`], use the [`Builder`], or [`noop()`](YieldProgress::noop).
