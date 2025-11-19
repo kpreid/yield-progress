@@ -21,7 +21,7 @@ jobs:
     strategy:
       matrix:
         toolchain: [stable, 1.63.0, beta, nightly]
-        features: ['', 'sync', 'sync,log_hiccups']
+        features: ['', 'sync', 'log_hiccups', 'sync,log_hiccups']
 
     runs-on: ubuntu-latest
     continue-on-error: "${{ matrix.toolchain != 'nightly' && matrix.toolchain != 'beta' }}"
