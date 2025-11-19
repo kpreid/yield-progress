@@ -142,6 +142,17 @@ async fn start_and_cut() {
     assert_eq!(r.drain(), vec![Progress(1.0, "".into()), Yielded, Dropped]);
 }
 
+/// Test that start_and_cut() doesn't require its label to outlive the future.
+/// This is a “does it compile?” test that does not need to be run.
+async fn _start_and_cut_label_is_not_captured() {
+    let mut p = YieldProgress::noop();
+    let future = {
+        let s = String::from("hello");
+        p.start_and_cut(0.5, &s)
+    };
+    future.await;
+}
+
 #[tokio::test]
 async fn split_evenly_basic() {
     let (p, mut r) = logging_yield_progress();

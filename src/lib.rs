@@ -360,13 +360,13 @@ impl YieldProgress {
     /// # }
     /// ```
     #[track_caller]
-    pub fn start_and_cut<L: fmt::Display>(
+    pub fn start_and_cut(
         &mut self,
         cut: f32,
-        label: L,
-    ) -> impl Future<Output = Self> + Send + use<L> {
-        // Note: the use<L> bound is not required and is in fact unduly restrictive.
-        // However, removing it is not currently suppoerted by rustc.
+        label: impl fmt::Display,
+    ) -> impl Future<Output = Self> + Send + 'static {
+        // Note: The `+ 'static` bound is the only currently available way to express that the
+        // returned future does not capture `label`.
 
         let cut_abs = self.point_in_range(cut);
         let mut portion = self.with_new_range(self.start, cut_abs);
