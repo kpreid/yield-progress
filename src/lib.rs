@@ -151,7 +151,7 @@ impl YieldProgress {
     /// # Example
     ///
     /// ```
-    /// use yield_progress::YieldProgress;
+    /// # use yield_progress::YieldProgress;
     /// # struct Pb;
     /// # impl Pb { fn set_value(&self, _value: f32) {} }
     /// # let some_progress_bar = Pb;
@@ -189,8 +189,7 @@ impl YieldProgress {
     ///
     /// ```
     /// # #[tokio::main(flavor = "current_thread")] async fn main() {
-    /// use yield_progress::YieldProgress;
-    ///
+    /// # use yield_progress::YieldProgress;
     /// let mut progress = YieldProgress::noop();
     /// // These calls will have no effect.
     /// progress.set_label("a tree falls in a forest");
@@ -210,6 +209,38 @@ impl YieldProgress {
     ///
     /// This does not immediately report progress; that is, the label will not be visible
     /// anywhere until the next operation that does. Future versions may report it immediately.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # #[tokio::main(flavor = "current_thread")] async fn main() {
+    /// # use yield_progress::YieldProgress;
+    /// async fn process_things(progress: YieldProgress, things: &[String]) {
+    ///     let len = things.len();
+    ///     for ((mut progress, thing), i) in progress.split_evenly(len).zip(things).zip(1..) {
+    ///         progress.set_label(format_args!("Processing {i}/{len}: {thing}"));
+    ///         progress.progress(0.0).await;
+    ///         // ... Do actual work here ...
+    ///         progress.finish().await;
+    ///     }
+    /// }
+    /// # let expected_label = &*Box::leak(Box::new(std::sync::OnceLock::<String>::new()));
+    /// # process_things(
+    /// #     yield_progress::Builder::new()
+    /// #         .progress_using(move |info| {
+    /// #             if !info.label_str().is_empty() {
+    /// #                 expected_label.set(info.label_str().to_owned());
+    /// #             }
+    /// #         })
+    /// #         .build(),
+    /// #     &[String::from("hello world")],
+    /// # ).await;
+    /// # assert_eq!(
+    /// #     expected_label.get().map(|s| &**s),
+    /// #     Some::<&str>("Processing 1/1: hello world"),
+    /// # );
+    /// # }
+    /// ```
     pub fn set_label(&mut self, label: impl fmt::Display) {
         self.set_label_internal(Some(Arc::from(label.to_string())))
     }
@@ -235,6 +266,23 @@ impl YieldProgress {
     /// Report the current amount of progress (a number from 0 to 1) and yield.
     ///
     /// The value *may* be less than previously given values.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # #[tokio::main(flavor = "current_thread")] async fn main() {
+    /// # use yield_progress::YieldProgress;
+    /// # pub fn first_half_of_work() {}
+    /// # pub fn second_half_of_work() {}
+    /// async fn do_work(progress: YieldProgress) {
+    ///     first_half_of_work();
+    ///     progress.progress(0.5).await;
+    ///     second_half_of_work();
+    ///     progress.finish().await;
+    /// }
+    /// # do_work(YieldProgress::noop()).await;
+    /// # }
+    /// ```
     #[track_caller] // This is not an `async fn` because `track_caller` is not compatible
     pub fn progress(&self, progress_fraction: f32) -> impl Future<Output = ()> + use<> {
         let location = Location::caller();
@@ -296,6 +344,23 @@ impl YieldProgress {
 
     /// Report that the given amount of progress has been made, then return
     /// a [`YieldProgress`] covering the remaining range.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # #[tokio::main(flavor = "current_thread")] async fn main() {
+    /// # use yield_progress::YieldProgress;
+    /// # pub fn first_half_of_work() {}
+    /// # pub async fn second_half_of_work(progress: YieldProgress) {
+    /// #     progress.finish().await;
+    /// # }
+    /// async fn do_work(progress: YieldProgress) {
+    ///     first_half_of_work();
+    ///     second_half_of_work(progress.finish_and_cut(0.5).await).await;
+    /// }
+    /// # do_work(YieldProgress::noop()).await;
+    /// # }
+    /// ```
     #[track_caller] // This is not an `async fn` because `track_caller` is not compatible
     pub fn finish_and_cut(
         self,
@@ -315,14 +380,21 @@ impl YieldProgress {
     /// by `label`. That fraction is cut off of the beginning range of `self`, and returned
     /// as a separate [`YieldProgress`].
     ///
-    /// ```no_run
-    /// # async fn foo() {
+    /// # Example
+    ///
+    /// ```
+    /// # #[tokio::main(flavor = "current_thread")] async fn main() {
     /// # use yield_progress::YieldProgress;
-    /// # let mut main_progress = YieldProgress::noop();
-    /// let a_progress = main_progress.start_and_cut(0.5, "task A").await;
-    /// // do task A...
-    /// a_progress.finish().await;
-    /// // continue using main_progress...
+    /// # pub async fn first_half_of_work(progress: YieldProgress) {
+    /// #     progress.finish().await;
+    /// # }
+    /// # pub fn second_half_of_work() {}
+    /// async fn do_work(mut progress: YieldProgress) {
+    ///     first_half_of_work(progress.start_and_cut(0.5, "first half").await).await;
+    ///     second_half_of_work();
+    ///     progress.finish().await;
+    /// }
+    /// # do_work(YieldProgress::noop()).await;
     /// # }
     /// ```
     #[track_caller]
@@ -360,6 +432,26 @@ impl YieldProgress {
     ///
     /// The returned instances should be used in sequence, but this is not enforced.
     /// Using them concurrently will result in the progress bar jumping backwards.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # #[tokio::main(flavor = "current_thread")] async fn main() {
+    /// # use yield_progress::YieldProgress;
+    /// # pub async fn first_half_of_work(progress: YieldProgress) {
+    /// #     progress.finish().await;
+    /// # }
+    /// # pub async fn second_half_of_work(progress: YieldProgress) {
+    /// #     progress.finish().await;
+    /// # }
+    /// async fn do_work(mut progress: YieldProgress) {
+    ///     let [p1, p2] = progress.split(0.5);
+    ///     first_half_of_work(p1).await;
+    ///     second_half_of_work(p2).await;
+    /// }
+    /// # do_work(YieldProgress::noop()).await;
+    /// # }
+    /// ```
     pub fn split(self, cut: f32) -> [Self; 2] {
         let cut_abs = self.point_in_range(cut);
         [
@@ -373,6 +465,23 @@ impl YieldProgress {
     ///
     /// The returned instances should be used in sequence, but this is not enforced.
     /// Using them concurrently will result in the progress bar jumping backwards.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # #[tokio::main(flavor = "current_thread")] async fn main() {
+    /// # use yield_progress::YieldProgress;
+    /// # struct Thing;
+    /// # fn process_one_thing(thing: Thing) {}
+    /// async fn process_things(progress: YieldProgress, things: Vec<Thing>) {
+    ///     for (mut progress, thing) in progress.split_evenly(things.len()).zip(things) {
+    ///         process_one_thing(thing);
+    ///         progress.finish().await;
+    ///     }
+    /// }
+    /// # process_things(YieldProgress::noop(), vec![Thing]).await;
+    /// # }
+    /// ```
     pub fn split_evenly(
         self,
         count: usize,
@@ -398,6 +507,28 @@ impl YieldProgress {
     /// The label passed through will be the label from the first subtask that has a progress
     /// value less than 1.0. This choice may be changed in the future if the label system is
     /// elaborated.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # #[tokio::main(flavor = "current_thread")] async fn main() {
+    /// use yield_progress::YieldProgress;
+    /// use tokio::task::JoinSet;
+    /// # struct Thing;
+    /// # async fn process_one_thing(progress: YieldProgress, thing: Thing) {
+    /// #     progress.finish().await;
+    /// # }
+    ///
+    /// async fn process_things(progress: YieldProgress, things: Vec<Thing>) {
+    ///     let mut join_set = tokio::task::JoinSet::new();
+    ///     for (mut progress, thing) in progress.split_evenly_concurrent(things.len()).zip(things) {
+    ///         join_set.spawn(process_one_thing(progress, thing));
+    ///     }
+    ///     join_set.join_all().await;
+    /// }
+    /// # process_things(YieldProgress::noop(), vec![Thing]).await;
+    /// # }
+    /// ```
     #[cfg(feature = "sync")]
     pub fn split_evenly_concurrent(
         self,

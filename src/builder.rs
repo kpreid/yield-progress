@@ -6,6 +6,20 @@ use alloc::sync::Arc;
 use crate::{BoxFuture, ProgressInfo, YieldInfo, YieldProgress, Yielding, basic_yield_now};
 
 /// Builder for creating root [`YieldProgress`] instances.
+///
+/// # Example
+///
+/// ```
+/// # struct Pb;
+/// # impl Pb { fn set_value(&self, _value: f32) {} }
+/// # let some_progress_bar = Pb;
+/// let progress = yield_progress::Builder::new()
+///     .yield_using(|_| tokio::task::yield_now())
+///     .progress_using(move |info| {
+///         some_progress_bar.set_value(info.fraction());
+///     })
+///     .build();
+/// ```
 #[derive(Clone)]
 #[must_use]
 pub struct Builder {
