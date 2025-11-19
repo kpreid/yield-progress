@@ -28,7 +28,7 @@ jobs:
     continue-on-error: "${{ matrix.toolchain != 'nightly' && matrix.toolchain != 'beta' }}"
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Install Rust toolchain
       # Install exactly what we need: compiler, Cargo, clippy
@@ -38,7 +38,7 @@ jobs:
           rustup override set "${{ matrix.toolchain }}"
 
     # Load cache before doing any Rust builds
-    - uses: Swatinem/rust-cache@v2.7.3
+    - uses: Swatinem/rust-cache@v2.8.1
       with:
         # Split by toolchain to avoid collisions.
         # We'll still collide on features, but that should be mostly okay and save some disk.
@@ -90,7 +90,7 @@ jobs:
     runs-on: ubuntu-latest
   
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Install Rust toolchain
       run: |
@@ -98,7 +98,7 @@ jobs:
           rustup target add --toolchain=stable thumbv7em-none-eabihf
           rustup override set stable
 
-    - uses: Swatinem/rust-cache@v2.7.3
+    - uses: Swatinem/rust-cache@v2.8.1
   
     - name: Compile
       run: cargo build --no-default-features --target thumbv7em-none-eabihf --timings
@@ -111,7 +111,7 @@ jobs:
   fmt:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4  
+    - uses: actions/checkout@v5
     # GitHub runners already have rustfmt installed.
     - run: cargo fmt --check --all
 
@@ -124,9 +124,9 @@ jobs:
     runs-on: ubuntu-latest
   
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
   
-    - uses: Swatinem/rust-cache@v2.7.3
+    - uses: Swatinem/rust-cache@v2.8.1
   
     - name: Check semver
       uses: obi1kenobi/cargo-semver-checks-action@v2
