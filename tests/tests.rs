@@ -219,4 +219,9 @@ async fn split_evenly_concurrent() {
     );
 }
 
+#[tokio::test]
+async fn basic_yield_smoke_test() {
+    yield_progress::basic_yield_now().await;
+}
+
 // TODO: test split()

@@ -22,6 +22,11 @@ sync = []
 # in which case the feature flag may still exist but do nothing.
 log_hiccups = ["dep:log", "dep:web-time"]
 
+[lib]
+# All non-doc tests are in the test target
+test = false
+doctest = true
+
 [[example]]
 name = "interactive-cancel"
 required-features = ["sync"]
