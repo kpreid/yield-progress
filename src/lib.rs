@@ -10,7 +10,7 @@
 //!
 //! # Crate feature flags
 //!
-//! * `sync` (default): Implements `YieldProgress: Send + Sync` for use with multi-threaded executors.
+//! * `sync` (default): Adds `YieldProgress::split_evenly_concurrent()`.
 //!
 //!   Requires `std` to be available for the compilation target.
 //!
@@ -65,20 +65,13 @@ pub use builder::Builder;
 #[cfg(feature = "sync")]
 mod concurrent;
 
-mod maybe_sync;
-use maybe_sync::*;
-
 mod info;
 pub use info::{ProgressInfo, YieldInfo};
 
 /// We could import this alias from `futures-core` but that would be another non-dev dependency.
 type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
-// We allow !Sync progress functions but only internally; this type doesn't control the API.
-#[cfg(feature = "sync")]
 type ProgressFn = dyn for<'a> Fn(&'a ProgressInfo<'a>) + Send + Sync + 'static;
-#[cfg(not(feature = "sync"))]
-type ProgressFn = dyn for<'a> Fn(&'a ProgressInfo<'a>) + 'static;
 
 type YieldFn = dyn for<'a> Fn(&'a YieldInfo<'a>) -> BoxFuture<'static, ()> + Send + Sync;
 
@@ -248,7 +241,7 @@ impl YieldProgress {
     ///
     /// The value *may* be less than previously given values.
     #[track_caller] // This is not an `async fn` because `track_caller` is not compatible
-    pub fn progress(&self, progress_fraction: f32) -> maybe_send_impl_future!(()) {
+    pub fn progress(&self, progress_fraction: f32) -> impl Future<Output = ()> + Send + 'static {
         let location = Location::caller();
 
         self.progress_without_yield(progress_fraction);
@@ -272,7 +265,7 @@ impl YieldProgress {
 
     /// Yield only; that is, call the yield function contained within this [`YieldProgress`].
     #[track_caller] // This is not an `async fn` because `track_caller` is not compatible
-    pub fn yield_without_progress(&self) -> maybe_send_impl_future!(()) {
+    pub fn yield_without_progress(&self) -> impl Future<Output = ()> + Send + 'static {
         let location = Location::caller();
 
         self.yielding.clone().yield_only(
@@ -302,14 +295,17 @@ impl YieldProgress {
     ///
     /// This is identical to `.progress(1.0)` but consumes the `YieldProgress` object.
     #[track_caller] // This is not an `async fn` because `track_caller` is not compatible
-    pub fn finish(self) -> maybe_send_impl_future!(()) {
+    pub fn finish(self) -> impl Future<Output = ()> + Send + 'static {
         self.progress(1.0)
     }
 
     /// Report that the given amount of progress has been made, then return
     /// a [`YieldProgress`] covering the remaining range.
     #[track_caller] // This is not an `async fn` because `track_caller` is not compatible
-    pub fn finish_and_cut(self, progress_fraction: f32) -> maybe_send_impl_future!(Self) {
+    pub fn finish_and_cut(
+        self,
+        progress_fraction: f32,
+    ) -> impl Future<Output = Self> + Send + 'static {
         // Efficiency note: this is structured so that `a` can be dropped immediately
         // and does not live on in the future.
         let [a, b] = self.split(progress_fraction);
@@ -339,7 +335,7 @@ impl YieldProgress {
         &mut self,
         cut: f32,
         label: impl fmt::Display,
-    ) -> maybe_send_impl_future!(Self) {
+    ) -> impl Future<Output = Self> + Send + 'static {
         let cut_abs = self.point_in_range(cut);
         let mut portion = self.with_new_range(self.start, cut_abs);
         self.start = cut_abs;

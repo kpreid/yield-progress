@@ -2,7 +2,6 @@ use tokio::sync::mpsc::{self, error::TryRecvError};
 
 use yield_progress::{Builder, YieldProgress};
 
-#[cfg(feature = "sync")]
 fn assert_send_sync<T: Send + Sync>() {
     // We don't need to do anything in this function; the call to it having been successfully
     // compiled is the assertion.
@@ -57,7 +56,6 @@ impl YpLog {
 }
 
 #[test]
-#[cfg(feature = "sync")]
 fn yield_progress_is_sync() {
     assert_send_sync::<YieldProgress>()
 }
