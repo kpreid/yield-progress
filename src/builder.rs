@@ -1,14 +1,8 @@
 use core::future::Future;
-use core::panic::Location;
 
 use alloc::boxed::Box;
 
-#[cfg(not(feature = "sync"))]
-use crate::Mutexish as _;
-use crate::{
-    basic_yield_now, BoxFuture, MaRc, ProgressInfo, StateCell, YieldInfo, YieldProgress,
-    YieldState, Yielding,
-};
+use crate::{basic_yield_now, BoxFuture, MaRc, ProgressInfo, YieldInfo, YieldProgress, Yielding};
 
 /// Builder for creating root [`YieldProgress`] instances.
 #[derive(Clone)]
@@ -36,10 +30,10 @@ impl Builder {
                 yielder: move |_info: &YieldInfo<'_>| -> BoxFuture<'static, ()> {
                     Box::pin(basic_yield_now())
                 },
-                state: StateCell::new(YieldState {
-                    #[cfg(feature = "log_hiccups")]
+                #[cfg(feature = "log_hiccups")]
+                state: std::sync::Mutex::new(crate::YieldState {
                     last_finished_yielding: web_time::Instant::now(),
-                    last_yield_location: Location::caller(),
+                    last_yield_location: core::panic::Location::caller(),
                     last_yield_label: None,
                 }),
             }),
@@ -77,7 +71,8 @@ impl Builder {
             yielder: move |info: &YieldInfo<'_>| -> BoxFuture<'static, ()> {
                 Box::pin(function(info))
             },
-            state: StateCell::new(self.yielding.state.lock().unwrap().clone()),
+            #[cfg(feature = "log_hiccups")]
+            state: std::sync::Mutex::new(self.yielding.state.lock().unwrap().clone()),
         });
         self.yielding = new_yielding;
         self

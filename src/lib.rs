@@ -37,7 +37,7 @@
 
 extern crate alloc;
 
-#[cfg(any(test, feature = "sync"))]
+#[cfg(any(test, feature = "sync", feature = "log_hiccups"))]
 #[cfg_attr(test, macro_use)]
 extern crate std;
 
@@ -117,18 +117,21 @@ pub struct YieldProgress {
 
 /// Piggyback on the `Arc` we need to store the `dyn Fn` anyway to also store some state.
 struct Yielding<F: ?Sized> {
-    state: StateCell<YieldState>,
+    #[cfg(feature = "log_hiccups")]
+    state: std::sync::Mutex<YieldState>,
 
     yielder: F,
 }
 
 type BoxYielding = MaRc<Yielding<YieldFn>>;
 
+/// Information about the last yield performed.
+/// Compared with the current state when the `log_hiccups` feature is enabled.
+#[cfg(feature = "log_hiccups")]
 #[derive(Clone)]
 struct YieldState {
     /// The most recent instant at which `yielder`'s future completed.
     /// Used to detect overlong time periods between yields.
-    #[cfg(feature = "log_hiccups")]
     last_finished_yielding: Instant,
 
     last_yield_location: &'static Location<'static>,
@@ -245,11 +248,14 @@ impl YieldProgress {
     #[track_caller] // This is not an `async fn` because `track_caller` is not compatible
     pub fn progress(&self, progress_fraction: f32) -> maybe_send_impl_future!(()) {
         let location = Location::caller();
-        let label = self.label.clone();
 
         self.progress_without_yield(progress_fraction);
 
-        self.yielding.clone().yield_only(location, label)
+        self.yielding.clone().yield_only(
+            location,
+            #[cfg(feature = "log_hiccups")]
+            self.label.clone(),
+        )
     }
 
     /// Report the current amount of progress (a number from 0 to 1) without yielding.
@@ -266,9 +272,12 @@ impl YieldProgress {
     #[track_caller] // This is not an `async fn` because `track_caller` is not compatible
     pub fn yield_without_progress(&self) -> maybe_send_impl_future!(()) {
         let location = Location::caller();
-        let label = self.label.clone();
 
-        self.yielding.clone().yield_only(location, label)
+        self.yielding.clone().yield_only(
+            location,
+            #[cfg(feature = "log_hiccups")]
+            self.label.clone(),
+        )
     }
 
     /// Assemble a [`ProgressInfo`] using self's range and send it to the progress function.
@@ -417,7 +426,7 @@ where
     fn yield_only(
         self: MaRc<Self>,
         location: &'static Location<'static>,
-        mut label: Option<MaRc<str>>,
+        #[cfg(feature = "log_hiccups")] mut label: Option<MaRc<str>>,
     ) -> impl Future<Output = ()> {
         #[cfg(feature = "log_hiccups")]
         {
@@ -462,6 +471,7 @@ where
             };
             yield_future.await;
 
+            #[cfg(feature = "log_hiccups")]
             {
                 let mut state = self.state.lock().unwrap();
 
@@ -469,10 +479,7 @@ where
                 // Efficiency: this `Option::take()` avoids generating a drop flag.
                 state.last_yield_label = label.take();
 
-                #[cfg(feature = "log_hiccups")]
-                {
-                    state.last_finished_yielding = Instant::now();
-                }
+                state.last_finished_yielding = Instant::now();
             }
         }
     }

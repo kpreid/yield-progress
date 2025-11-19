@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+* Removed some unnecessary work and stored data when the `"log_hiccups"` feature is not enabled.
+  The behavior of the feature is unchanged.
+
 ## 0.1.7 (2024-06-30)
 
 * Reduced the size of futures produced by the library, for efficiency.
