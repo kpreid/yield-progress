@@ -187,6 +187,7 @@ async fn split_evenly_with_max() {
     assert_eq!(r.drain(), vec![Progress(1.0, "".into()), Yielded, Dropped]);
 }
 
+#[cfg(feature = "sync")]
 #[tokio::test]
 async fn split_evenly_concurrent() {
     let (p, mut r) = logging_yield_progress();

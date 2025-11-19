@@ -80,6 +80,7 @@ impl Builder {
     }
 
     /// Internal version of `yield_using` which takes an already boxed function and yielding state.
+    #[cfg_attr(not(feature = "sync"), allow(dead_code))]
     pub(crate) fn yielding_internal(mut self, new_yielding: crate::BoxYielding) -> Self {
         self.yielding = new_yielding;
         self

@@ -1,14 +1,13 @@
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+use std::sync::Mutex;
 
-#[cfg(not(feature = "sync"))]
-use crate::Mutexish as _;
-use crate::{ProgressInfo, StateCell, YieldProgress};
+use crate::{ProgressInfo, YieldProgress};
 
 /// Aggregate progress information from multiple concurrent tasks.
 pub(crate) struct ConcurrentProgress {
     parent: YieldProgress,
-    children: StateCell<Vec<Child>>,
+    children: Mutex<Vec<Child>>,
 }
 
 #[derive(Default)]
@@ -21,7 +20,7 @@ impl ConcurrentProgress {
     pub(crate) fn new(parent: YieldProgress, count: usize) -> Arc<Self> {
         Arc::new(Self {
             parent,
-            children: StateCell::new(
+            children: Mutex::new(
                 core::iter::repeat_with(Default::default)
                     .take(count)
                     .collect(),

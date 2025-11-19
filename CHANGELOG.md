@@ -1,6 +1,13 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 (Unreleased)
+
+### Removed
+
+* `YieldProgress::split_evenly_concurrent()` is now only available if the `"sync"` feature is
+  enabled.
+
+### Performance
 
 * Removed some unnecessary work and stored data when the `"log_hiccups"` feature is not enabled.
   The behavior of the feature is unchanged.
