@@ -9,6 +9,7 @@
 
 ### Removed
 
+* The deprecated function `YieldProgress::new()` has been removed.
 * `YieldProgress::split_evenly_concurrent()` is now only available if the `"sync"` feature is
   enabled.
 
