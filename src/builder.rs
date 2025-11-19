@@ -1,16 +1,17 @@
 use core::future::Future;
 
 use alloc::boxed::Box;
+use alloc::sync::Arc;
 
-use crate::{basic_yield_now, BoxFuture, MaRc, ProgressInfo, YieldInfo, YieldProgress, Yielding};
+use crate::{basic_yield_now, BoxFuture, ProgressInfo, YieldInfo, YieldProgress, Yielding};
 
 /// Builder for creating root [`YieldProgress`] instances.
 #[derive(Clone)]
 #[must_use]
 pub struct Builder {
-    yielding: MaRc<Yielding<crate::YieldFn>>,
+    yielding: Arc<Yielding<crate::YieldFn>>,
     /// public to allow overriding the API `Sync` requirement
-    pub(crate) progressor: MaRc<crate::ProgressFn>,
+    pub(crate) progressor: Arc<crate::ProgressFn>,
 }
 
 impl Builder {
@@ -26,7 +27,7 @@ impl Builder {
     #[track_caller]
     pub fn new() -> Builder {
         Builder {
-            yielding: MaRc::new(Yielding {
+            yielding: Arc::new(Yielding {
                 yielder: move |_info: &YieldInfo<'_>| -> BoxFuture<'static, ()> {
                     Box::pin(basic_yield_now())
                 },
@@ -37,7 +38,7 @@ impl Builder {
                     last_yield_label: None,
                 }),
             }),
-            progressor: MaRc::new(|_| {}),
+            progressor: Arc::new(|_| {}),
         }
     }
 
@@ -67,7 +68,7 @@ impl Builder {
         Y: for<'a> Fn(&'a YieldInfo<'a>) -> YFut + Send + Sync + 'static,
         YFut: Future<Output = ()> + Send + 'static,
     {
-        let new_yielding = MaRc::new(Yielding {
+        let new_yielding = Arc::new(Yielding {
             yielder: move |info: &YieldInfo<'_>| -> BoxFuture<'static, ()> {
                 Box::pin(function(info))
             },
@@ -92,7 +93,7 @@ impl Builder {
     where
         P: for<'a> Fn(&'a ProgressInfo<'a>) + Send + Sync + 'static,
     {
-        self.progressor = MaRc::new(function);
+        self.progressor = Arc::new(function);
         self
     }
 }

@@ -1,8 +1,9 @@
+use alloc::sync::Arc;
 use alloc::vec::Vec;
 
 #[cfg(not(feature = "sync"))]
 use crate::Mutexish as _;
-use crate::{MaRc, ProgressInfo, StateCell, YieldProgress};
+use crate::{ProgressInfo, StateCell, YieldProgress};
 
 /// Aggregate progress information from multiple concurrent tasks.
 pub(crate) struct ConcurrentProgress {
@@ -13,12 +14,12 @@ pub(crate) struct ConcurrentProgress {
 #[derive(Default)]
 struct Child {
     fraction: f32,
-    label: Option<MaRc<str>>,
+    label: Option<crate::Label>,
 }
 
 impl ConcurrentProgress {
-    pub(crate) fn new(parent: YieldProgress, count: usize) -> MaRc<Self> {
-        MaRc::new(Self {
+    pub(crate) fn new(parent: YieldProgress, count: usize) -> Arc<Self> {
+        Arc::new(Self {
             parent,
             children: StateCell::new(
                 core::iter::repeat_with(Default::default)
@@ -28,7 +29,7 @@ impl ConcurrentProgress {
         })
     }
 
-    pub(crate) fn progressor(self: MaRc<Self>, index: usize) -> impl Fn(&ProgressInfo<'_>) {
+    pub(crate) fn progressor(self: Arc<Self>, index: usize) -> impl Fn(&ProgressInfo<'_>) {
         move |info| {
             let &ProgressInfo {
                 fraction,

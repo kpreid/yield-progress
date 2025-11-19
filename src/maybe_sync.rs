@@ -7,7 +7,7 @@ pub(crate) use sync::*;
 
 #[cfg(feature = "sync")]
 mod sync {
-    pub(crate) use std::sync::Arc as MaRc;
+
     pub(crate) use std::sync::Mutex as StateCell;
 
     // stub definition; the real one is only used when the feature is disabled
@@ -22,7 +22,6 @@ mod sync {
 
 #[cfg(not(feature = "sync"))]
 mod not_sync {
-    pub(crate) use alloc::rc::Rc as MaRc;
     pub(crate) use core::cell::RefCell as StateCell;
 
     /// For internal convenience, make `RefCell` look like `Mutex`.

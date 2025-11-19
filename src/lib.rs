@@ -48,6 +48,7 @@ use core::pin::Pin;
 
 use alloc::boxed::Box;
 use alloc::string::ToString as _;
+use alloc::sync::Arc;
 
 #[cfg(doc)]
 use core::task::Poll;
@@ -81,6 +82,8 @@ type ProgressFn = dyn for<'a> Fn(&'a ProgressInfo<'a>) + 'static;
 
 type YieldFn = dyn for<'a> Fn(&'a YieldInfo<'a>) -> BoxFuture<'static, ()> + Send + Sync;
 
+type Label = Arc<str>;
+
 /// Allows a long-running async task to report its progress, while also yielding to the
 /// scheduler (e.g. for single-threaded web environment) and introducing cancellation
 /// points.
@@ -106,12 +109,12 @@ pub struct YieldProgress {
     /// TODO: Eventually we will want to have things like "label this segment as a
     /// fallback if it has no better label", which will require some notion of distinguishing
     /// inheritance from having been explicitly set.
-    label: Option<MaRc<str>>,
+    label: Option<Label>,
 
     yielding: BoxYielding,
     // TODO: change progress reporting interface to support efficient handling of
     // the label string being the same as last time.
-    progressor: MaRc<ProgressFn>,
+    progressor: Arc<ProgressFn>,
 }
 
 /// Piggyback on the `Arc` we need to store the `dyn Fn` anyway to also store some state.
@@ -122,7 +125,7 @@ struct Yielding<F: ?Sized> {
     yielder: F,
 }
 
-type BoxYielding = MaRc<Yielding<YieldFn>>;
+type BoxYielding = Arc<Yielding<YieldFn>>;
 
 /// Information about the last yield performed.
 /// Compared with the current state when the `log_hiccups` feature is enabled.
@@ -135,7 +138,7 @@ struct YieldState {
 
     last_yield_location: &'static Location<'static>,
 
-    last_yield_label: Option<MaRc<str>>,
+    last_yield_label: Option<Label>,
 }
 
 impl fmt::Debug for YieldProgress {
@@ -220,10 +223,10 @@ impl YieldProgress {
     /// This does not immediately report progress; that is, the label will not be visible
     /// anywhere until the next operation that does. Future versions may report it immediately.
     pub fn set_label(&mut self, label: impl fmt::Display) {
-        self.set_label_internal(Some(MaRc::from(label.to_string())))
+        self.set_label_internal(Some(Arc::from(label.to_string())))
     }
 
-    fn set_label_internal(&mut self, label: Option<MaRc<str>>) {
+    fn set_label_internal(&mut self, label: Option<Label>) {
         self.label = label;
     }
 
@@ -285,7 +288,7 @@ impl YieldProgress {
     fn send_progress(
         &self,
         progress_fraction: f32,
-        label: Option<&MaRc<str>>,
+        label: Option<&Label>,
         location: &Location<'_>,
     ) {
         (self.progressor)(&ProgressInfo {
@@ -353,8 +356,8 @@ impl YieldProgress {
             start,
             end,
             label: self.label.clone(),
-            yielding: MaRc::clone(&self.yielding),
-            progressor: MaRc::clone(&self.progressor),
+            yielding: Arc::clone(&self.yielding),
+            progressor: Arc::clone(&self.progressor),
         }
     }
 
@@ -411,7 +414,7 @@ impl YieldProgress {
             // The progressor may be `!Sync` if our `sync` feature is disabled.
             // This is prohibited in our API, but it's safe for us as long as we match the feature.
             // Therefore, bypass the method and assign the field directly.
-            builder.progressor = MaRc::new(MaRc::clone(&conc).progressor(index));
+            builder.progressor = Arc::new(Arc::clone(&conc).progressor(index));
             builder.build()
         })
     }
@@ -423,9 +426,9 @@ where
 {
     #[allow(clippy::manual_async_fn)] // false positive from cfg
     fn yield_only(
-        self: MaRc<Self>,
+        self: Arc<Self>,
         location: &'static Location<'static>,
-        #[cfg(feature = "log_hiccups")] mut label: Option<MaRc<str>>,
+        #[cfg(feature = "log_hiccups")] mut label: Option<Label>,
     ) -> impl Future<Output = ()> {
         #[cfg(feature = "log_hiccups")]
         {
