@@ -5,6 +5,7 @@
 ### Added
 
 * The `YieldProgress` type now always implements `Send + Sync` regardless of enabled features.
+* More documentation examples.
 
 ### Removed
 
