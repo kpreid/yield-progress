@@ -1,8 +1,8 @@
 [package]
 name = "yield-progress"
 version = "0.2.0"
-edition = "2021"
-rust-version = "1.63.0"
+edition = "2024"
+rust-version = "1.85.0"
 description = "Combined progress reporting and cooperative task yielding."
 repository = "https://github.com/kpreid/yield-progress"
 license = "MIT OR Apache-2.0"

@@ -241,7 +241,7 @@ impl YieldProgress {
     ///
     /// The value *may* be less than previously given values.
     #[track_caller] // This is not an `async fn` because `track_caller` is not compatible
-    pub fn progress(&self, progress_fraction: f32) -> impl Future<Output = ()> + Send + 'static {
+    pub fn progress(&self, progress_fraction: f32) -> impl Future<Output = ()> + use<> {
         let location = Location::caller();
 
         self.progress_without_yield(progress_fraction);
@@ -265,7 +265,7 @@ impl YieldProgress {
 
     /// Yield only; that is, call the yield function contained within this [`YieldProgress`].
     #[track_caller] // This is not an `async fn` because `track_caller` is not compatible
-    pub fn yield_without_progress(&self) -> impl Future<Output = ()> + Send + 'static {
+    pub fn yield_without_progress(&self) -> impl Future<Output = ()> + Send + use<> {
         let location = Location::caller();
 
         self.yielding.clone().yield_only(
@@ -295,7 +295,7 @@ impl YieldProgress {
     ///
     /// This is identical to `.progress(1.0)` but consumes the `YieldProgress` object.
     #[track_caller] // This is not an `async fn` because `track_caller` is not compatible
-    pub fn finish(self) -> impl Future<Output = ()> + Send + 'static {
+    pub fn finish(self) -> impl Future<Output = ()> + Send + use<> {
         self.progress(1.0)
     }
 
@@ -305,7 +305,7 @@ impl YieldProgress {
     pub fn finish_and_cut(
         self,
         progress_fraction: f32,
-    ) -> impl Future<Output = Self> + Send + 'static {
+    ) -> impl Future<Output = Self> + Send + use<> {
         // Efficiency note: this is structured so that `a` can be dropped immediately
         // and does not live on in the future.
         let [a, b] = self.split(progress_fraction);
@@ -331,11 +331,14 @@ impl YieldProgress {
     /// # }
     /// ```
     #[track_caller]
-    pub fn start_and_cut(
+    pub fn start_and_cut<L: fmt::Display>(
         &mut self,
         cut: f32,
-        label: impl fmt::Display,
-    ) -> impl Future<Output = Self> + Send + 'static {
+        label: L,
+    ) -> impl Future<Output = Self> + Send + use<L> {
+        // Note: the use<L> bound is not required and is in fact unduly restrictive.
+        // However, removing it is not currently suppoerted by rustc.
+
         let cut_abs = self.point_in_range(cut);
         let mut portion = self.with_new_range(self.start, cut_abs);
         self.start = cut_abs;
@@ -378,7 +381,8 @@ impl YieldProgress {
     pub fn split_evenly(
         self,
         count: usize,
-    ) -> impl DoubleEndedIterator<Item = YieldProgress> + ExactSizeIterator + FusedIterator {
+    ) -> impl DoubleEndedIterator<Item = YieldProgress> + ExactSizeIterator + FusedIterator + use<>
+    {
         (0..count).map(move |index| {
             self.with_new_range(
                 self.point_in_range(index as f32 / count as f32),
@@ -403,7 +407,8 @@ impl YieldProgress {
     pub fn split_evenly_concurrent(
         self,
         count: usize,
-    ) -> impl DoubleEndedIterator<Item = YieldProgress> + ExactSizeIterator + FusedIterator {
+    ) -> impl DoubleEndedIterator<Item = YieldProgress> + ExactSizeIterator + FusedIterator + use<>
+    {
         let yielding = self.yielding.clone();
         let conc = concurrent::ConcurrentProgress::new(self, count);
         (0..count).map(move |index| {
@@ -424,7 +429,7 @@ where
         self: Arc<Self>,
         location: &'static Location<'static>,
         #[cfg(feature = "log_hiccups")] mut label: Option<Label>,
-    ) -> impl Future<Output = ()> {
+    ) -> impl Future<Output = ()> + use<F> {
         #[cfg(feature = "log_hiccups")]
         {
             #[allow(unused)] // may be redundant depending on other features
